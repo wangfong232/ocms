@@ -16,9 +16,9 @@
         </div>
         @if (userRole == "Doctor")
         {
-            <a asp-action="Profile" class="btn btn-outline-primary px-3 shadow-sm">
+            <button type="button" class="btn btn-outline-primary px-3 shadow-sm" onclick="openDoctorProfileModal()">
                 <i class="bi bi-person-gear me-1"></i>Hồ sơ của tôi
-            </a>
+            </button>
         }
     </div>
 
@@ -68,18 +68,11 @@
                                 </span>
                             </div>
 
-                            <div class="p-2 bg-success-subtle rounded-3 border border-success-subtle mb-3">
+                            <div class="p-2 bg-success-subtle rounded-3 border border-success-subtle">
                                 <span class="text-success small fw-semibold d-block">Phí khám niêm yết:</span>
                                 <span class="fs-5 fw-bold text-success">@doc.PricePerSlot.ToString("N0") đ</span>
                                 <span class="text-muted small">/ 15 phút</span>
                             </div>
-
-                            @if (userRole == "Admin")
-                            {
-                                <a asp-action="Profile" asp-route-id="@doc.DoctorId" class="btn btn-sm btn-outline-primary w-100">
-                                    <i class="bi bi-pencil me-1"></i>Chỉnh sửa hồ sơ & biểu phí
-                                </a>
-                            }
                         </div>
                     </div>
                 </div>

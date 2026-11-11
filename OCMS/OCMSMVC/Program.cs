@@ -26,6 +26,8 @@ namespace OCMSMVC
             builder.Services.AddScoped<IDoctorScheduleRepository, DoctorScheduleRepository>();
             builder.Services.AddScoped<IDoctorScheduleService, DoctorScheduleService>();
             builder.Services.AddScoped<IDoctorService, DoctorService>();
+            builder.Services.AddScoped<IConsultationRepository, ConsultationRepository>();
+            builder.Services.AddScoped<IConsultationService, ConsultationService>();
 
 
 

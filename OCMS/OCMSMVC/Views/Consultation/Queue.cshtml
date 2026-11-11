@@ -1,0 +1,197 @@
+@model List<OCMSMVC.Models.ConsultationQueueItemViewModel>
+@{
+    ViewData["Title"] = "Hàng đợi Khám bệnh Hôm nay";
+    string currentFilter = ViewBag.CurrentFilter as string ?? "waiting";
+    int waitingCount = ViewBag.WaitingCount is int wc ? wc : 0;
+    int examiningCount = ViewBag.ExaminingCount is int ec ? ec : 0;
+    int completedCount = ViewBag.CompletedCount is int cc ? cc : 0;
+    int totalCount = ViewBag.TotalCount is int tc ? tc : 0;
+}
+
+<div class="container py-3">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+        <div>
+            <h3 class="fw-bold text-primary mb-1">
+                <i class="bi bi-clipboard2-pulse me-2"></i>Bàn khám bệnh — Hàng đợi Hôm nay
+            </h3>
+            <p class="text-muted small mb-0">
+                Ngày: <strong>@DateTime.Today.ToString("dd/MM/yyyy")</strong> — Tiếp nhận bệnh nhân, ghi nhận chỉ số sinh tồn và hồ sơ bệnh án EMR
+            </p>
+        </div>
+        <div>
+            <a asp-action="Queue" class="btn btn-outline-secondary btn-sm shadow-sm" title="Tải lại danh sách">
+                <i class="bi bi-arrow-clockwise me-1"></i>Làm mới
+            </a>
+        </div>
+    </div>
+
+    <!-- Alert Messages -->
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <!-- Tabs Lọc Trạng Thái -->
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <a asp-action="Queue" asp-route-filter="waiting" 
+           class="btn btn-sm @(currentFilter == "waiting" ? "btn-primary shadow-sm" : "btn-outline-primary")">
+            <i class="bi bi-hourglass-split me-1"></i>Chờ khám
+            <span class="badge @(currentFilter == "waiting" ? "bg-white text-primary" : "bg-primary text-white") ms-1">@waitingCount</span>
+        </a>
+        <a asp-action="Queue" asp-route-filter="examining" 
+           class="btn btn-sm @(currentFilter == "examining" ? "btn-warning text-dark shadow-sm" : "btn-outline-warning text-dark")">
+            <i class="bi bi-person-pulse me-1"></i>Đang khám
+            <span class="badge @(currentFilter == "examining" ? "bg-dark text-white" : "bg-warning text-dark") ms-1">@examiningCount</span>
+        </a>
+        <a asp-action="Queue" asp-route-filter="completed" 
+           class="btn btn-sm @(currentFilter == "completed" ? "btn-success shadow-sm" : "btn-outline-success")">
+            <i class="bi bi-check2-circle me-1"></i>Đã khám xong
+            <span class="badge @(currentFilter == "completed" ? "bg-white text-success" : "bg-success text-white") ms-1">@completedCount</span>
+        </a>
+        <a asp-action="Queue" asp-route-filter="all" 
+           class="btn btn-sm @(currentFilter == "all" ? "btn-secondary shadow-sm" : "btn-outline-secondary")">
+            <i class="bi bi-list-check me-1"></i>Tất cả ca hôm nay
+            <span class="badge @(currentFilter == "all" ? "bg-white text-dark" : "bg-secondary text-white") ms-1">@totalCount</span>
+        </a>
+    </div>
+
+    <!-- Bảng danh sách hàng đợi -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            @if (Model == null || !Model.Any())
+            {
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-inbox fs-1 text-secondary opacity-50 d-block mb-3"></i>
+                    <p class="mb-0 fs-6">Hiện tại không có bệnh nhân nào trong mục này.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3" style="width: 70px;">STT</th>
+                                <th>Khung giờ</th>
+                                <th>Thông tin Bệnh nhân</th>
+                                <th>Lý do khám bệnh</th>
+                                <th class="text-center">Sinh hiệu</th>
+                                <th class="text-center">Trạng thái</th>
+                                <th class="text-end pe-3">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td class="ps-3 fw-bold text-primary">
+                                        @if (item.QueueNumber.HasValue)
+                                        {
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-6">
+                                                #@item.QueueNumber
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">--</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border">
+                                            <i class="bi bi-clock me-1 text-secondary"></i>@item.TimeSlotDisplay
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold text-dark">@item.PatientName</div>
+                                        <div class="small text-muted">
+                                            <span>@item.Gender</span>
+                                            @if (item.BirthYear > 0)
+                                            {
+                                                <span> • @(DateTime.Today.Year - item.BirthYear) tuổi</span>
+                                            }
+                                            @if (!string.IsNullOrEmpty(item.HealthInsuranceNumber))
+                                            {
+                                                <span> • BHYT: @item.HealthInsuranceNumber</span>
+                                            }
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="small text-muted">
+                                            @(string.IsNullOrEmpty(item.Reason) ? "Khám bệnh định kỳ" : item.Reason)
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        @if (item.HasVitalSigns)
+                                        {
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                <i class="bi bi-heart-pulse-fill me-1"></i>Đã đo
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-light text-muted border">
+                                                Chưa có
+                                            </span>
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        @if (item.Status == "InConsultation")
+                                        {
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="bi bi-person-pulse me-1"></i>Đang khám
+                                            </span>
+                                        }
+                                        else if (item.Status == "Completed")
+                                        {
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-check-circle me-1"></i>Đã xong
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-info text-dark">
+                                                <i class="bi bi-hourglass-split me-1"></i>Chờ khám
+                                            </span>
+                                        }
+                                    </td>
+                                    <td class="text-end pe-3">
+                                        @if (item.Status == "InConsultation")
+                                        {
+                                            <a asp-action="Examine" asp-route-id="@item.AppointmentId" class="btn btn-sm btn-warning text-dark fw-semibold shadow-sm">
+                                                <i class="bi bi-play-circle me-1"></i>Tiếp tục khám
+                                            </a>
+                                        }
+                                        else if (item.Status == "Completed")
+                                        {
+                                            <a asp-action="Examine" asp-route-id="@item.AppointmentId" class="btn btn-sm btn-outline-secondary">
+                                                <i class="bi bi-eye me-1"></i>Xem bệnh án
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <a asp-action="Examine" asp-route-id="@item.AppointmentId" class="btn btn-sm btn-primary shadow-sm">
+                                                <i class="bi bi-box-arrow-in-right me-1"></i>Vào khám
+                                            </a>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+

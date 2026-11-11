@@ -29,6 +29,11 @@
 						@if (Context.Session.GetString("Role") == "Doctor")
 						{
 							<li class="nav-item">
+								<a class="nav-link" asp-controller="Consultation" asp-action="Queue">
+									<i class="bi bi-clipboard2-pulse me-1"></i>Bàn khám bệnh
+								</a>
+							</li>
+							<li class="nav-item">
 								<a class="nav-link" asp-controller="DoctorSchedule" asp-action="Index">
 									<i class="bi bi-calendar2-week me-1"></i>Lịch trực bác sĩ
 								</a>

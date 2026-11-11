@@ -32,3 +32,4 @@ namespace Repositories
         Task<bool> UpdateAppointmentStatusAsync(int appointmentId, string status);
     }
 }
+
