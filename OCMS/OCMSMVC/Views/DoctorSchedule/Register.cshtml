@@ -16,7 +16,6 @@
                     <h3 class="fw-bold text-primary mb-1">
                         <i class="bi bi-calendar-plus me-2"></i>Đăng ký Ca trực Tuần
                     </h3>
-                    <p class="text-muted small mb-0">Hệ thống sẽ tự động tạo 16 slot khám (15 phút/slot) cho ca trực</p>
                 </div>
             </div>
 
@@ -89,23 +88,6 @@
                                 }
                             </select>
                             <span asp-validation-for="RoomId" class="text-danger small"></span>
-                            <div class="form-text text-muted">
-                                Hệ thống đã tự động chọn sẵn phòng mặc định được phân công của bạn. Bạn có thể chọn phòng khác nếu cần.
-                            </div>
-                        </div>
-
-                        <!-- Card tóm tắt tự động tạo 16 slot -->
-                        <div class="card bg-light border-0 mb-4">
-                            <div class="card-body">
-                                <h6 class="fw-bold text-secondary mb-2">
-                                    <i class="bi bi-lightning-charge-fill text-warning me-1"></i>Cơ chế tự động sinh Slot (Slot Generation):
-                                </h6>
-                                <ul class="small text-muted mb-0 ps-3">
-                                    <li>Mỗi ca trực có tổng cộng <strong>16 khung giờ khám</strong> độc lập (mỗi khung 15 phút).</li>
-                                    <li>Tất cả 16 khung giờ ban đầu sẽ ở trạng thái <strong>Mở (Open)</strong> để bệnh nhân có thể đặt lịch khám.</li>
-                                    <li>Hệ thống áp dụng cơ chế khóa Concurrency Token (`RowVersion`) để bảo vệ chống trùng lịch millisecond.</li>
-                                </ul>
-                            </div>
                         </div>
 
                         <!-- Buttons -->

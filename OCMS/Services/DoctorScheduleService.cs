@@ -121,7 +121,7 @@ namespace Services
 
             // 7. Lưu vào CSDL
             var createdSchedule = await _scheduleRepo.AddAsync(schedule);
-            return (true, "Đăng ký ca trực thành công! Hệ thống đã tự động tạo 16 khung giờ khám (15 phút/khung giờ).", createdSchedule);
+            return (true, "Đăng ký ca trực thành công!", createdSchedule);
         }
 
         public async Task<(bool Success, string Message)> CancelShiftAsync(int scheduleId, int doctorId)
