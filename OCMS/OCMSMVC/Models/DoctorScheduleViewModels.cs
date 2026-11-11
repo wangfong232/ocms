@@ -52,3 +52,4 @@ namespace OCMSMVC.Models
         public string Status { get; set; } = "Open"; // Open, Hold, Booked, Cancelled
     }
 }
+

@@ -24,8 +24,16 @@
 				<div class="collapse navbar-collapse" id="navbarMain">
 					<ul class="navbar-nav me-auto mb-2 mb-lg-0">
 						<li class="nav-item">
-							<a class="nav-link active" asp-controller="Home" asp-action="Index">Trang chủ</a>
+							<a class="nav-link" asp-controller="Home" asp-action="Index">Trang chủ</a>
 						</li>
+						@if (Context.Session.GetString("Role") == "Doctor")
+						{
+							<li class="nav-item">
+								<a class="nav-link" asp-controller="DoctorSchedule" asp-action="Index">
+									<i class="bi bi-calendar2-week me-1"></i>Lịch trực bác sĩ
+								</a>
+							</li>
+						}
 					</ul>
 
 					<!--Session-->
