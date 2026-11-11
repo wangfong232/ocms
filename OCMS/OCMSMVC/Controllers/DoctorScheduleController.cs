@@ -42,7 +42,7 @@ namespace OCMSMVC.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string filter = "today")
         {
             var (isDoctor, doctorId, _) = await GetCurrentDoctorAsync();
             if (!isDoctor)
@@ -50,13 +50,52 @@ namespace OCMSMVC.Controllers
                 return RedirectToAction("Login", "Auth");
             }
 
-            var schedules = await _doctorScheduleService.GetMySchedulesAsync(doctorId);
+            var allSchedules = await _doctorScheduleService.GetMySchedulesAsync(doctorId);
+            var today = DateTime.Today;
+            const int maxDays = 14; // Nghiệp vụ: Đăng ký trước tối đa 14 ngày (2 tuần), quá khứ tương ứng 14 ngày
+
+            // Đếm số lượng ca cho từng mốc
+            int todayCount = allSchedules.Count(s => s.WorkDate.Date == today);
+            int upcomingCount = allSchedules.Count(s => s.WorkDate.Date > today && s.WorkDate.Date <= today.AddDays(maxDays));
+            int pastCount = allSchedules.Count(s => s.WorkDate.Date < today && s.WorkDate.Date >= today.AddDays(-maxDays));
+
+            // Lọc danh sách hiển thị theo lựa chọn
+            List<BusinessObjects.Entities.DoctorSchedule> targetSchedules;
+            if (filter == "upcoming")
+            {
+                targetSchedules = allSchedules
+                    .Where(s => s.WorkDate.Date > today && s.WorkDate.Date <= today.AddDays(maxDays))
+                    .OrderBy(s => s.WorkDate)
+                    .ThenBy(s => s.ShiftType)
+                    .ToList();
+            }
+            else if (filter == "past")
+            {
+                targetSchedules = allSchedules
+                    .Where(s => s.WorkDate.Date < today && s.WorkDate.Date >= today.AddDays(-maxDays))
+                    .OrderByDescending(s => s.WorkDate)
+                    .ThenBy(s => s.ShiftType)
+                    .ToList();
+            }
+            else // mặc định là "today"
+            {
+                filter = "today";
+                targetSchedules = allSchedules
+                    .Where(s => s.WorkDate.Date == today)
+                    .OrderBy(s => s.ShiftType)
+                    .ToList();
+            }
+
+            ViewBag.CurrentFilter = filter;
+            ViewBag.TodayCount = todayCount;
+            ViewBag.UpcomingCount = upcomingCount;
+            ViewBag.PastCount = pastCount;
+            ViewBag.MaxDays = maxDays;
 
             var viewModelList = new List<DoctorScheduleItemViewModel>();
 
-            foreach (var s in schedules)
+            foreach (var s in targetSchedules)
             {
-                // Đếm số slot đã có lịch hẹn thực tế (không tính những lịch đã hủy)
                 int bookedCount = 0;
                 var slotVMs = new List<TimeSlotItemViewModel>();
 
@@ -78,7 +117,7 @@ namespace OCMSMVC.Controllers
                 }
 
                 // Ca trực có thể hủy khi: Đang Active, Chưa có bệnh nhân đặt lịch hẹn
-                bool canCancel = s.Status == "Active" && bookedCount == 0;
+                bool canCancel = s.Status == "Active" && bookedCount == 0 && s.WorkDate.Date >= today;
 
                 viewModelList.Add(new DoctorScheduleItemViewModel
                 {

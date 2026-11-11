@@ -1,6 +1,11 @@
 @model List<OCMSMVC.Models.DoctorScheduleItemViewModel>
 @{
     ViewData["Title"] = "Quản lý Lịch trực Bác sĩ";
+    string currentFilter = ViewBag.CurrentFilter as string ?? "today";
+    int todayCount = ViewBag.TodayCount is int tc ? tc : 0;
+    int upcomingCount = ViewBag.UpcomingCount is int uc ? uc : 0;
+    int pastCount = ViewBag.PastCount is int pc ? pc : 0;
+    int maxDays = ViewBag.MaxDays is int md ? md : 14;
 }
 
 <div class="container py-3">
@@ -10,6 +15,7 @@
             <h3 class="fw-bold text-primary mb-1">
                 <i class="bi bi-calendar2-week me-2"></i>Lịch trực & Khung giờ khám
             </h3>
+            <p class="text-muted small mb-0">Chu kỳ đăng ký tối đa @maxDays ngày tới — Ca quá hạn tự động ẩn khỏi bảng nhưng lưu trữ vĩnh viễn trong CSDL</p>
         </div>
         <a asp-action="Register" class="btn btn-primary px-3 shadow-sm">
             <i class="bi bi-plus-circle me-1"></i>Đăng ký ca trực mới
@@ -32,22 +38,70 @@
         </div>
     }
 
-    <!-- Table of Schedules -->
-    <div class="card shadow-sm border-0">
-        <div class="card-header bg-white py-3">
-            <h5 class="card-title mb-0 fw-semibold text-secondary">
-                <i class="bi bi-list-ul me-2"></i>Danh sách ca trực đã đăng ký
-            </h5>
+    <!-- Nút điều hướng thời gian: Xem quá khứ | Hôm nay (Mặc định) | Xem tương lai -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div class="btn-group shadow-sm" role="group">
+            <!-- 1. Nút Xem Quá Khứ -->
+            <a asp-action="Index" asp-route-filter="past" class="btn @(currentFilter == "past" ? "btn-secondary" : "btn-outline-secondary")">
+                <i class="bi bi-arrow-left me-1"></i>Xem ca quá khứ (@maxDays ngày trước)
+                <span class="badge @(currentFilter == "past" ? "bg-light text-dark" : "bg-secondary text-white") ms-1">@pastCount</span>
+            </a>
+
+            <!-- 2. Nút Ca Hôm Nay (Mặc định) -->
+            <a asp-action="Index" asp-route-filter="today" class="btn @(currentFilter == "today" ? "btn-primary" : "btn-outline-primary") fw-bold">
+                <i class="bi bi-calendar-check me-1"></i>Hôm nay (@DateTime.Today.ToString("dd/MM/yyyy"))
+                <span class="badge @(currentFilter == "today" ? "bg-white text-primary" : "bg-primary text-white") ms-1">@todayCount</span>
+            </a>
+
+            <!-- 3. Nút Xem Tương Lai -->
+            <a asp-action="Index" asp-route-filter="upcoming" class="btn @(currentFilter == "upcoming" ? "btn-success" : "btn-outline-success")">
+                Xem ca tương lai (@maxDays ngày tới)<i class="bi bi-arrow-right ms-1"></i>
+                <span class="badge @(currentFilter == "upcoming" ? "bg-light text-dark" : "bg-success text-white") ms-1">@upcomingCount</span>
+            </a>
         </div>
+
+        <span class="text-muted small">
+            Đang xem: 
+            <strong>
+                @(currentFilter switch {
+                    "past" => $"Lịch sử {maxDays} ngày gần nhất",
+                    "upcoming" => $"Ca làm việc trong {maxDays} ngày tới",
+                    _ => "Ca trực ngày hôm nay"
+                })
+            </strong>
+        </span>
+    </div>
+
+    <!-- Bảng hiển thị danh sách ca -->
+    <div class="card shadow-sm border-0">
         <div class="card-body p-0">
             @if (Model == null || !Model.Any())
             {
                 <div class="text-center py-5 text-muted">
                     <i class="bi bi-calendar-x fs-1 text-secondary opacity-50 d-block mb-3"></i>
-                    <p class="mb-2">Bạn chưa có ca trực nào được đăng ký.</p>
-                    <a asp-action="Register" class="btn btn-sm btn-outline-primary">
-                        <i class="bi bi-plus-circle me-1"></i>Đăng ký ca trực đầu tiên
-                    </a>
+                    @if (currentFilter == "today")
+                    {
+                        <p class="mb-2 fs-6">Hôm nay bạn không có ca trực nào.</p>
+                        <div class="d-flex justify-content-center gap-2">
+                            <a asp-action="Index" asp-route-filter="upcoming" class="btn btn-sm btn-outline-success">
+                                <i class="bi bi-arrow-right me-1"></i>Xem ca tương lai (@upcomingCount)
+                            </a>
+                            <a asp-action="Register" class="btn btn-sm btn-primary">
+                                <i class="bi bi-plus-circle me-1"></i>Đăng ký ca trực mới
+                            </a>
+                        </div>
+                    }
+                    else if (currentFilter == "upcoming")
+                    {
+                        <p class="mb-2">Không có ca trực nào được đăng ký trong @maxDays ngày tới.</p>
+                        <a asp-action="Register" class="btn btn-sm btn-primary">
+                            <i class="bi bi-plus-circle me-1"></i>Đăng ký ca trực mới
+                        </a>
+                    }
+                    else
+                    {
+                        <p class="mb-0">Không có ca trực nào trong @maxDays ngày vừa qua.</p>
+                    }
                 </div>
             }
             else
@@ -67,7 +121,8 @@
                         <tbody>
                             @foreach (var s in Model)
                             {
-                                <tr>
+                                bool isPast = s.WorkDate.Date < DateTime.Today;
+                                <tr class="@(isPast ? "text-muted" : "")">
                                     <td class="ps-3 fw-medium">
                                         <div class="d-flex align-items-center">
                                             <div class="calendar-badge me-2 text-center p-1 bg-light rounded border" style="min-width: 48px;">
@@ -75,7 +130,13 @@
                                                 <strong class="fs-6">@s.WorkDate.Day</strong>
                                             </div>
                                             <div>
-                                                <div>@s.WorkDate.ToString("dd/MM/yyyy")</div>
+                                                <div>
+                                                    @s.WorkDate.ToString("dd/MM/yyyy")
+                                                    @if (s.WorkDate.Date == DateTime.Today)
+                                                    {
+                                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1">Hôm nay</span>
+                                                    }
+                                                </div>
                                                 <small class="text-muted">
                                                     @{
                                                         string dayOfWeekStr = s.WorkDate.DayOfWeek switch
@@ -116,7 +177,11 @@
                                         </span>
                                     </td>
                                     <td class="text-center">
-                                        @if (s.Status == "Active")
+                                        @if (isPast)
+                                        {
+                                            <span class="badge bg-secondary">Đã kết thúc</span>
+                                        }
+                                        else if (s.Status == "Active")
                                         {
                                             <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Đang hoạt động</span>
                                         }
@@ -126,21 +191,18 @@
                                         }
                                     </td>
                                     <td class="text-end pe-3">
-                                        <!-- Nút xem danh sách 16 slot -->
                                         <button type="button" class="btn btn-sm btn-outline-info me-1" data-bs-toggle="modal" data-bs-target="#slotsModal-@s.Id">
-                                            <i class="bi bi-clock-history me-1"></i>Chi tiết 16 Slot
+                                            <i class="bi bi-clock-history me-1"></i>16 Slot
                                         </button>
-
-                                        <!-- Nút Hủy ca trực khẩn cấp (chỉ khi canCancel == true) -->
                                         @if (s.CanCancel)
                                         {
                                             <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal-@s.Id">
                                                 <i class="bi bi-calendar-x me-1"></i>Hủy ca
                                             </button>
                                         }
-                                        else if (s.Status == "Active" && s.BookedSlotsCount > 0)
+                                        else if (s.Status == "Active" && s.BookedSlotsCount > 0 && !isPast)
                                         {
-                                            <span class="badge bg-light text-muted border" title="Không thể hủy ca vì đã có bệnh nhân đặt hẹn">
+                                            <span class="badge bg-light text-muted border">
                                                 <i class="bi bi-lock-fill me-1"></i>Đã có hẹn
                                             </span>
                                         }
@@ -197,7 +259,7 @@
                                                     <div class="modal-body">
                                                         <p class="mb-2">Bạn có chắc chắn muốn hủy ca trực sau vì lý do cá nhân / khẩn cấp?</p>
                                                         <div class="p-3 bg-light rounded border mb-3">
-                                                            <div><strong>Ngày:</strong> @s.WorkDate.ToString("dd/MM/yyyy") (@dayOfWeekStr)</div>
+                                                            <div><strong>Ngày:</strong> @s.WorkDate.ToString("dd/MM/yyyy")</div>
                                                             <div><strong>Ca:</strong> @s.ShiftDisplayName</div>
                                                             <div><strong>Phòng:</strong> Phòng @s.RoomNumber</div>
                                                             <div><strong>Tình trạng:</strong> Chưa có bệnh nhân đặt hẹn (0/@s.MaxQuota)</div>
@@ -225,4 +287,3 @@
         </div>
     </div>
 </div>
-
