@@ -101,10 +101,52 @@ namespace OCMSMVC.Controllers
             return View(model);
         }
 
+        // 2b. Lấy Partial View Popup Profile cho Modal ở Navbar
+        [HttpGet]
+        public async Task<IActionResult> GetProfileModal()
+        {
+            var role = HttpContext.Session.GetString("Role");
+            var userId = HttpContext.Session.GetInt32("UserId");
+            if (role != "Doctor" || !userId.HasValue)
+            {
+                return Unauthorized();
+            }
+
+            var doctor = await _doctorService.GetDoctorByUserIdAsync(userId.Value);
+            if (doctor == null)
+            {
+                return NotFound();
+            }
+
+            var rooms = await _doctorService.GetAvailableRoomsForDoctorAsync(doctor.Id);
+
+            var model = new DoctorProfileViewModel
+            {
+                DoctorId = doctor.Id,
+                UserId = doctor.UserId,
+                FullName = doctor.User?.FullName ?? string.Empty,
+                Email = doctor.User?.Email ?? string.Empty,
+                PhoneNumber = doctor.User?.PhoneNumber ?? string.Empty,
+                DepartmentName = doctor.Department?.Name ?? "Chưa phân khoa",
+                DepartmentId = doctor.DepartmentId,
+                AcademicTitle = doctor.AcademicTitle,
+                PricePerSlot = doctor.PricePerSlot,
+                DefaultRoomId = doctor.DefaultRoomId,
+                IsAdminEditing = false,
+                AvailableRooms = rooms.Select(r => new RoomItemViewModel
+                {
+                    Id = r.Id,
+                    RoomNumber = r.RoomNumber
+                }).ToList()
+            };
+
+            return PartialView("_ProfileModal", model);
+        }
+
         // 3. Cập nhật Hồ sơ & Biểu phí của Bác sĩ (POST)
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Profile(DoctorProfileViewModel model)
+        public async Task<IActionResult> Profile(DoctorProfileViewModel model, string? returnUrl = null)
         {
             var role = HttpContext.Session.GetString("Role");
             if (role != "Doctor" && role != "Admin")
@@ -130,6 +172,11 @@ namespace OCMSMVC.Controllers
 
             if (!ModelState.IsValid)
             {
+                TempData["ErrorMessage"] = "Thông tin không hợp lệ, vui lòng kiểm tra lại.";
+                if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+                {
+                    return Redirect(returnUrl);
+                }
                 var rooms = await _doctorService.GetAvailableRoomsForDoctorAsync(model.DoctorId);
                 model.AvailableRooms = rooms.Select(r => new RoomItemViewModel
                 {
@@ -149,6 +196,11 @@ namespace OCMSMVC.Controllers
 
             if (!result.Success)
             {
+                TempData["ErrorMessage"] = result.Message;
+                if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+                {
+                    return Redirect(returnUrl);
+                }
                 ModelState.AddModelError(string.Empty, result.Message);
                 var rooms = await _doctorService.GetAvailableRoomsForDoctorAsync(model.DoctorId);
                 model.AvailableRooms = rooms.Select(r => new RoomItemViewModel
@@ -165,7 +217,13 @@ namespace OCMSMVC.Controllers
                 HttpContext.Session.SetString("FullName", model.FullName.Trim());
             }
 
-            TempData["SuccessMessage"] = result.Message;
+            TempData["SuccessMessage"] = "Cập nhật hồ sơ & biểu phí thành công!";
+
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+            {
+                return Redirect(returnUrl);
+            }
+
             return RedirectToAction(nameof(Profile), new { id = model.DoctorId });
         }
     }
