@@ -1,0 +1,173 @@
+using Microsoft.AspNetCore.Mvc;
+using OCMSMVC.Models;
+using Services;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+
+namespace OCMSMVC.Controllers
+{
+    public class DoctorController : Controller
+    {
+        private readonly IDoctorService _doctorService;
+
+        public DoctorController(IDoctorService doctorService)
+        {
+            _doctorService = doctorService;
+        }
+
+        // 1. Danh sách Bác sĩ & Biểu phí niêm yết (Transparent Pricing)
+        [HttpGet]
+        public async Task<IActionResult> Index()
+        {
+            var doctors = await _doctorService.GetAllDoctorsAsync();
+
+            var modelList = new List<DoctorListItemViewModel>();
+            foreach (var d in doctors)
+            {
+                modelList.Add(new DoctorListItemViewModel
+                {
+                    DoctorId = d.Id,
+                    FullName = d.User?.FullName ?? "N/A",
+                    Email = d.User?.Email ?? "N/A",
+                    PhoneNumber = d.User?.PhoneNumber ?? "N/A",
+                    AcademicTitle = d.AcademicTitle,
+                    DepartmentName = d.Department?.Name ?? "Chưa phân khoa",
+                    DefaultRoomNumber = d.DefaultRoom?.RoomNumber ?? "Chưa xếp",
+                    PricePerSlot = d.PricePerSlot
+                });
+            }
+
+            return View(modelList);
+        }
+
+        // 2. Trang Hồ sơ & Biểu phí của Bác sĩ (GET)
+        [HttpGet]
+        public async Task<IActionResult> Profile(int? id)
+        {
+            var role = HttpContext.Session.GetString("Role");
+            if (role != "Doctor" && role != "Admin")
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
+            var userId = HttpContext.Session.GetInt32("UserId");
+            if (!userId.HasValue)
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
+            BusinessObjects.Entities.Doctor? doctor = null;
+
+            // Nếu Admin đang xem hồ sơ của một bác sĩ cụ thể theo id
+            if (role == "Admin" && id.HasValue)
+            {
+                doctor = await _doctorService.GetDoctorByIdAsync(id.Value);
+            }
+            else
+            {
+                // Bác sĩ đang tự xem hồ sơ của chính mình
+                doctor = await _doctorService.GetDoctorByUserIdAsync(userId.Value);
+            }
+
+            if (doctor == null)
+            {
+                TempData["ErrorMessage"] = "Không tìm thấy thông tin hồ sơ bác sĩ.";
+                return RedirectToAction("Index", "Home");
+            }
+
+            var rooms = await _doctorService.GetAvailableRoomsForDoctorAsync(doctor.Id);
+
+            var model = new DoctorProfileViewModel
+            {
+                DoctorId = doctor.Id,
+                UserId = doctor.UserId,
+                FullName = doctor.User?.FullName ?? string.Empty,
+                Email = doctor.User?.Email ?? string.Empty,
+                PhoneNumber = doctor.User?.PhoneNumber ?? string.Empty,
+                DepartmentName = doctor.Department?.Name ?? "Chưa phân khoa",
+                DepartmentId = doctor.DepartmentId,
+                AcademicTitle = doctor.AcademicTitle,
+                PricePerSlot = doctor.PricePerSlot,
+                DefaultRoomId = doctor.DefaultRoomId,
+                IsAdminEditing = (role == "Admin"),
+                AvailableRooms = rooms.Select(r => new RoomItemViewModel
+                {
+                    Id = r.Id,
+                    RoomNumber = r.RoomNumber
+                }).ToList()
+            };
+
+            return View(model);
+        }
+
+        // 3. Cập nhật Hồ sơ & Biểu phí của Bác sĩ (POST)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Profile(DoctorProfileViewModel model)
+        {
+            var role = HttpContext.Session.GetString("Role");
+            if (role != "Doctor" && role != "Admin")
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
+            var userId = HttpContext.Session.GetInt32("UserId");
+            if (!userId.HasValue)
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
+            // Nếu vai trò là Bác sĩ thì chỉ được sửa hồ sơ của chính mình
+            if (role == "Doctor")
+            {
+                var currentDoctor = await _doctorService.GetDoctorByUserIdAsync(userId.Value);
+                if (currentDoctor == null || currentDoctor.Id != model.DoctorId)
+                {
+                    return RedirectToAction("AccessDenied", "Auth");
+                }
+            }
+
+            if (!ModelState.IsValid)
+            {
+                var rooms = await _doctorService.GetAvailableRoomsForDoctorAsync(model.DoctorId);
+                model.AvailableRooms = rooms.Select(r => new RoomItemViewModel
+                {
+                    Id = r.Id,
+                    RoomNumber = r.RoomNumber
+                }).ToList();
+                return View(model);
+            }
+
+            var result = await _doctorService.UpdateDoctorProfileAsync(
+                model.DoctorId,
+                model.FullName,
+                model.PhoneNumber,
+                model.AcademicTitle,
+                model.PricePerSlot,
+                model.DefaultRoomId);
+
+            if (!result.Success)
+            {
+                ModelState.AddModelError(string.Empty, result.Message);
+                var rooms = await _doctorService.GetAvailableRoomsForDoctorAsync(model.DoctorId);
+                model.AvailableRooms = rooms.Select(r => new RoomItemViewModel
+                {
+                    Id = r.Id,
+                    RoomNumber = r.RoomNumber
+                }).ToList();
+                return View(model);
+            }
+
+            // Đồng bộ tên hiển thị trong Session nếu Bác sĩ tự sửa
+            if (role == "Doctor")
+            {
+                HttpContext.Session.SetString("FullName", model.FullName.Trim());
+            }
+
+            TempData["SuccessMessage"] = result.Message;
+            return RedirectToAction(nameof(Profile), new { id = model.DoctorId });
+        }
+    }
+}
+
