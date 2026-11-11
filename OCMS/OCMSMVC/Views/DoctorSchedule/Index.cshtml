@@ -1,22 +1,29 @@
 @model List<OCMSMVC.Models.DoctorScheduleItemViewModel>
 @{
     ViewData["Title"] = "Quản lý Lịch trực Bác sĩ";
-    string currentFilter = ViewBag.CurrentFilter as string ?? "today";
-    int todayCount = ViewBag.TodayCount is int tc ? tc : 0;
-    int upcomingCount = ViewBag.UpcomingCount is int uc ? uc : 0;
-    int pastCount = ViewBag.PastCount is int pc ? pc : 0;
-    int maxDays = ViewBag.MaxDays is int md ? md : 14;
+    DateTime viewDate = ViewBag.ViewDate is DateTime vd ? vd : DateTime.Today;
+    DateTime today = ViewBag.Today is DateTime td ? td : DateTime.Today;
+    string prevDate = ViewBag.PrevDate as string ?? viewDate.AddDays(-1).ToString("yyyy-MM-dd");
+    string nextDate = ViewBag.NextDate as string ?? viewDate.AddDays(1).ToString("yyyy-MM-dd");
+    string? firstDate = ViewBag.FirstDate as string;
+    string? lastDate = ViewBag.LastDate as string;
+    string windowStart = ViewBag.WindowStart as string ?? today.AddDays(-14).ToString("yyyy-MM-dd");
+    string windowEnd = ViewBag.WindowEnd as string ?? today.AddDays(14).ToString("yyyy-MM-dd");
+
+    bool atWindowStart = viewDate.ToString("yyyy-MM-dd") == windowStart;
+    bool atWindowEnd = viewDate.ToString("yyyy-MM-dd") == windowEnd;
+
+    string[] days = { "Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy" };
+    string dayLabel = days[(int)viewDate.DayOfWeek];
+    bool isToday = viewDate.Date == today.Date;
 }
 
 <div class="container py-3">
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
-        <div>
-            <h3 class="fw-bold text-primary mb-1">
-                <i class="bi bi-calendar2-week me-2"></i>Lịch trực & Khung giờ khám
-            </h3>
-            <p class="text-muted small mb-0">Chu kỳ đăng ký tối đa @maxDays ngày tới — Ca quá hạn tự động ẩn khỏi bảng nhưng lưu trữ vĩnh viễn trong CSDL</p>
-        </div>
+        <h3 class="fw-bold text-primary mb-0">
+            <i class="bi bi-calendar2-week me-2"></i>Lịch trực &amp; Khung giờ khám
+        </h3>
         <a asp-action="Register" class="btn btn-primary px-3 shadow-sm">
             <i class="bi bi-plus-circle me-1"></i>Đăng ký ca trực mới
         </a>
@@ -38,38 +45,74 @@
         </div>
     }
 
-    <!-- Nút điều hướng thời gian: Xem quá khứ | Hôm nay (Mặc định) | Xem tương lai -->
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <div class="btn-group shadow-sm" role="group">
-            <!-- 1. Nút Xem Quá Khứ -->
-            <a asp-action="Index" asp-route-filter="past" class="btn @(currentFilter == "past" ? "btn-secondary" : "btn-outline-secondary")">
-                <i class="bi bi-arrow-left me-1"></i>Xem ca quá khứ (@maxDays ngày trước)
-                <span class="badge @(currentFilter == "past" ? "bg-light text-dark" : "bg-secondary text-white") ms-1">@pastCount</span>
+    <!-- Thanh điều hướng ngày -->
+    <div class="d-flex justify-content-center align-items-center gap-2 mb-3">
+        <!-- Nhảy về ca có ngày đầu tiên -->
+        @if (firstDate != null && viewDate.ToString("yyyy-MM-dd") != firstDate)
+        {
+            <a asp-action="Index" asp-route-date="@firstDate" class="btn btn-sm btn-outline-secondary" title="Ca đầu tiên">
+                <i class="bi bi-chevron-double-left"></i>
             </a>
+        }
+        else
+        {
+            <button class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-chevron-double-left"></i></button>
+        }
 
-            <!-- 2. Nút Ca Hôm Nay (Mặc định) -->
-            <a asp-action="Index" asp-route-filter="today" class="btn @(currentFilter == "today" ? "btn-primary" : "btn-outline-primary") fw-bold">
-                <i class="bi bi-calendar-check me-1"></i>Hôm nay (@DateTime.Today.ToString("dd/MM/yyyy"))
-                <span class="badge @(currentFilter == "today" ? "bg-white text-primary" : "bg-primary text-white") ms-1">@todayCount</span>
+        <!-- Lùi 1 ngày -->
+        @if (!atWindowStart)
+        {
+            <a asp-action="Index" asp-route-date="@prevDate" class="btn btn-sm btn-outline-secondary" title="Ngày trước">
+                <i class="bi bi-chevron-left"></i>
             </a>
+        }
+        else
+        {
+            <button class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-chevron-left"></i></button>
+        }
 
-            <!-- 3. Nút Xem Tương Lai -->
-            <a asp-action="Index" asp-route-filter="upcoming" class="btn @(currentFilter == "upcoming" ? "btn-success" : "btn-outline-success")">
-                Xem ca tương lai (@maxDays ngày tới)<i class="bi bi-arrow-right ms-1"></i>
-                <span class="badge @(currentFilter == "upcoming" ? "bg-light text-dark" : "bg-success text-white") ms-1">@upcomingCount</span>
-            </a>
+        <!-- Hiển thị ngày hiện tại -->
+        <div class="px-3 py-1 rounded border bg-white shadow-sm text-center" style="min-width: 170px;">
+            <div class="fw-bold @(isToday ? "text-primary" : "")">
+                @dayLabel, @viewDate.ToString("dd/MM/yyyy")
+                @if (isToday)
+                {
+                    <span class="badge bg-primary ms-1" style="font-size:0.65rem;">Hôm nay</span>
+                }
+            </div>
         </div>
 
-        <span class="text-muted small">
-            Đang xem: 
-            <strong>
-                @(currentFilter switch {
-                    "past" => $"Lịch sử {maxDays} ngày gần nhất",
-                    "upcoming" => $"Ca làm việc trong {maxDays} ngày tới",
-                    _ => "Ca trực ngày hôm nay"
-                })
-            </strong>
-        </span>
+        <!-- Tiến 1 ngày -->
+        @if (!atWindowEnd)
+        {
+            <a asp-action="Index" asp-route-date="@nextDate" class="btn btn-sm btn-outline-secondary" title="Ngày tiếp">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        }
+        else
+        {
+            <button class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-chevron-right"></i></button>
+        }
+
+        <!-- Nhảy đến ca có ngày cuối cùng -->
+        @if (lastDate != null && viewDate.ToString("yyyy-MM-dd") != lastDate)
+        {
+            <a asp-action="Index" asp-route-date="@lastDate" class="btn btn-sm btn-outline-secondary" title="Ca cuối cùng">
+                <i class="bi bi-chevron-double-right"></i>
+            </a>
+        }
+        else
+        {
+            <button class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-chevron-double-right"></i></button>
+        }
+
+        <!-- Nút về hôm nay (chỉ hiện khi không phải hôm nay) -->
+        @if (!isToday)
+        {
+            <a asp-action="Index" class="btn btn-sm btn-outline-primary ms-2" title="Về hôm nay">
+                <i class="bi bi-calendar-check"></i>
+            </a>
+        }
     </div>
 
     <!-- Bảng hiển thị danh sách ca -->
@@ -79,29 +122,10 @@
             {
                 <div class="text-center py-5 text-muted">
                     <i class="bi bi-calendar-x fs-1 text-secondary opacity-50 d-block mb-3"></i>
-                    @if (currentFilter == "today")
-                    {
-                        <p class="mb-2 fs-6">Hôm nay bạn không có ca trực nào.</p>
-                        <div class="d-flex justify-content-center gap-2">
-                            <a asp-action="Index" asp-route-filter="upcoming" class="btn btn-sm btn-outline-success">
-                                <i class="bi bi-arrow-right me-1"></i>Xem ca tương lai (@upcomingCount)
-                            </a>
-                            <a asp-action="Register" class="btn btn-sm btn-primary">
-                                <i class="bi bi-plus-circle me-1"></i>Đăng ký ca trực mới
-                            </a>
-                        </div>
-                    }
-                    else if (currentFilter == "upcoming")
-                    {
-                        <p class="mb-2">Không có ca trực nào được đăng ký trong @maxDays ngày tới.</p>
-                        <a asp-action="Register" class="btn btn-sm btn-primary">
-                            <i class="bi bi-plus-circle me-1"></i>Đăng ký ca trực mới
-                        </a>
-                    }
-                    else
-                    {
-                        <p class="mb-0">Không có ca trực nào trong @maxDays ngày vừa qua.</p>
-                    }
+                    <p class="mb-3 fs-6">Không có ca trực nào vào ngày này.</p>
+                    <a asp-action="Register" class="btn btn-sm btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i>Đăng ký ca trực mới
+                    </a>
                 </div>
             }
             else
@@ -250,6 +274,7 @@
                                                 <form asp-action="Cancel" method="post">
                                                     @Html.AntiForgeryToken()
                                                     <input type="hidden" name="id" value="@s.Id" />
+                                                    <input type="hidden" name="date" value="@viewDate.ToString("yyyy-MM-dd")" />
                                                     <div class="modal-header bg-danger text-white">
                                                         <h6 class="modal-title fw-bold">
                                                             <i class="bi bi-exclamation-triangle-fill me-2"></i>Xác nhận Hủy Ca Trực Khẩn Cấp

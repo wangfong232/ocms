@@ -42,7 +42,7 @@ namespace OCMSMVC.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Index(string filter = "today")
+        public async Task<IActionResult> Index(string? date = null)
         {
             var (isDoctor, doctorId, _) = await GetCurrentDoctorAsync();
             if (!isDoctor)
@@ -50,46 +50,54 @@ namespace OCMSMVC.Controllers
                 return RedirectToAction("Login", "Auth");
             }
 
-            var allSchedules = await _doctorScheduleService.GetMySchedulesAsync(doctorId);
             var today = DateTime.Today;
-            const int maxDays = 14; // Nghiệp vụ: Đăng ký trước tối đa 14 ngày (2 tuần), quá khứ tương ứng 14 ngày
+            const int maxDays = 14;
 
-            // Đếm số lượng ca cho từng mốc
-            int todayCount = allSchedules.Count(s => s.WorkDate.Date == today);
-            int upcomingCount = allSchedules.Count(s => s.WorkDate.Date > today && s.WorkDate.Date <= today.AddDays(maxDays));
-            int pastCount = allSchedules.Count(s => s.WorkDate.Date < today && s.WorkDate.Date >= today.AddDays(-maxDays));
-
-            // Lọc danh sách hiển thị theo lựa chọn
-            List<BusinessObjects.Entities.DoctorSchedule> targetSchedules;
-            if (filter == "upcoming")
+            // Xác định ngày hiển thị
+            DateTime viewDate = today;
+            if (!string.IsNullOrEmpty(date) && DateTime.TryParse(date, out var parsedDate))
             {
-                targetSchedules = allSchedules
-                    .Where(s => s.WorkDate.Date > today && s.WorkDate.Date <= today.AddDays(maxDays))
-                    .OrderBy(s => s.WorkDate)
-                    .ThenBy(s => s.ShiftType)
-                    .ToList();
-            }
-            else if (filter == "past")
-            {
-                targetSchedules = allSchedules
-                    .Where(s => s.WorkDate.Date < today && s.WorkDate.Date >= today.AddDays(-maxDays))
-                    .OrderByDescending(s => s.WorkDate)
-                    .ThenBy(s => s.ShiftType)
-                    .ToList();
-            }
-            else // mặc định là "today"
-            {
-                filter = "today";
-                targetSchedules = allSchedules
-                    .Where(s => s.WorkDate.Date == today)
-                    .OrderBy(s => s.ShiftType)
-                    .ToList();
+                // Giới hạn trong cửa sổ ±14 ngày
+                if (parsedDate.Date < today.AddDays(-maxDays)) viewDate = today.AddDays(-maxDays);
+                else if (parsedDate.Date > today.AddDays(maxDays)) viewDate = today.AddDays(maxDays);
+                else viewDate = parsedDate.Date;
             }
 
-            ViewBag.CurrentFilter = filter;
-            ViewBag.TodayCount = todayCount;
-            ViewBag.UpcomingCount = upcomingCount;
-            ViewBag.PastCount = pastCount;
+            var allSchedules = await _doctorScheduleService.GetMySchedulesAsync(doctorId);
+
+            // Lấy tất cả ngày có ca trong cửa sổ ±14 ngày (để tính prev/next)
+            var windowStart = today.AddDays(-maxDays);
+            var windowEnd = today.AddDays(maxDays);
+            var allDatesWithShifts = allSchedules
+                .Where(s => s.WorkDate.Date >= windowStart && s.WorkDate.Date <= windowEnd)
+                .Select(s => s.WorkDate.Date)
+                .Distinct()
+                .OrderBy(d => d)
+                .ToList();
+
+            // Lọc ca theo ngày đang xem
+            var targetSchedules = allSchedules
+                .Where(s => s.WorkDate.Date == viewDate)
+                .OrderBy(s => s.ShiftType)
+                .ToList();
+
+            // Tính ngày điều hướng
+            var prevDate = viewDate.AddDays(-1);
+            var nextDate = viewDate.AddDays(1);
+            if (prevDate < windowStart) prevDate = windowStart;
+            if (nextDate > windowEnd) nextDate = windowEnd;
+
+            var firstDate = allDatesWithShifts.FirstOrDefault();
+            var lastDate = allDatesWithShifts.LastOrDefault();
+
+            ViewBag.ViewDate = viewDate;
+            ViewBag.Today = today;
+            ViewBag.PrevDate = prevDate.ToString("yyyy-MM-dd");
+            ViewBag.NextDate = nextDate.ToString("yyyy-MM-dd");
+            ViewBag.FirstDate = firstDate != default ? firstDate.ToString("yyyy-MM-dd") : null;
+            ViewBag.LastDate = lastDate != default ? lastDate.ToString("yyyy-MM-dd") : null;
+            ViewBag.WindowStart = windowStart.ToString("yyyy-MM-dd");
+            ViewBag.WindowEnd = windowEnd.ToString("yyyy-MM-dd");
             ViewBag.MaxDays = maxDays;
 
             var viewModelList = new List<DoctorScheduleItemViewModel>();
@@ -138,6 +146,7 @@ namespace OCMSMVC.Controllers
 
         [HttpGet]
         public async Task<IActionResult> Register()
+
         {
             var (isDoctor, doctorId, _) = await GetCurrentDoctorAsync();
             if (!isDoctor)
@@ -204,7 +213,7 @@ namespace OCMSMVC.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Cancel(int id)
+        public async Task<IActionResult> Cancel(int id, string? date = null)
         {
             var (isDoctor, doctorId, _) = await GetCurrentDoctorAsync();
             if (!isDoctor)
@@ -222,7 +231,7 @@ namespace OCMSMVC.Controllers
                 TempData["ErrorMessage"] = result.Message;
             }
 
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction(nameof(Index), new { date });
         }
     }
 }
