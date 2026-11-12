@@ -22,6 +22,13 @@ namespace OCMSMVC
             // 3. Đăng ký Dependency Injection (Repository & Service)
             builder.Services.AddScoped<IUserRepository, UserRepository>();
             builder.Services.AddScoped<IUserService, UserService>();
+            builder.Services.AddScoped<IDoctorRepository, DoctorRepository>();
+            builder.Services.AddScoped<IDoctorScheduleRepository, DoctorScheduleRepository>();
+            builder.Services.AddScoped<IDoctorScheduleService, DoctorScheduleService>();
+            builder.Services.AddScoped<IDoctorService, DoctorService>();
+            builder.Services.AddScoped<IConsultationRepository, ConsultationRepository>();
+            builder.Services.AddScoped<IConsultationService, ConsultationService>();
+
             builder.Services.AddScoped<IAppointmentRepository, AppointmentRepository>();
             builder.Services.AddScoped<IReceptionService, ReceptionService>();
             builder.Services.AddScoped<IDepartmentService, DepartmentService>();
