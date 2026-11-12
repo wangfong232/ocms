@@ -29,6 +29,11 @@ namespace OCMSMVC
             builder.Services.AddScoped<IEmailService, EmailService>();
             builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 
+            builder.Services.AddScoped<IClinicWorkflowRepository, ClinicWorkflowRepository>();
+            builder.Services.AddScoped<IClinicWorkflowService, ClinicWorkflowService>();
+            builder.Services.AddScoped<IAdminManagementRepository, AdminManagementRepository>();
+            builder.Services.AddScoped<IAdminManagementService, AdminManagementService>();
+
             // Đăng ký các dịch vụ Worker
             builder.Services.AddHostedService<SlotExpiryWorker>();
             builder.Services.AddHostedService<DailyReminderWorker>();
@@ -78,6 +83,22 @@ namespace OCMSMVC
             app.UseRouting();
 
             app.UseSession();
+            app.Use(async (context, next) =>
+            {
+                var userId = context.Session.GetInt32("UserId");
+                if (userId.HasValue)
+                {
+                    var db = context.RequestServices.GetRequiredService<OcmsDbContext>();
+                    var isActive = await db.Users.AsNoTracking().AnyAsync(user => user.Id == userId.Value && user.IsActive);
+                    if (!isActive)
+                    {
+                        context.Session.Clear();
+                        context.Response.Redirect("/Auth/Login");
+                        return;
+                    }
+                }
+                await next();
+            });
             app.UseAuthentication();
             app.UseAuthorization();
 

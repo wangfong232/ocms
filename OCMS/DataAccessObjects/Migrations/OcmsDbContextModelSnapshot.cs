@@ -33,6 +33,9 @@ namespace DataAccessObjects.Migrations
                     b.Property<DateTime>("AppointmentDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<decimal?>("ConsultationFee")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("CancellationReason")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -420,6 +423,9 @@ namespace DataAccessObjects.Migrations
                     b.Property<int>("AppointmentId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("CashierId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -446,6 +452,8 @@ namespace DataAccessObjects.Migrations
 
                     b.HasIndex("AppointmentId");
 
+                    b.HasIndex("CashierId");
+
                     b.ToTable("Payments");
                 });
 
@@ -461,6 +469,12 @@ namespace DataAccessObjects.Migrations
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTime?>("DispensedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("DispensedByUserId")
+                        .HasColumnType("int");
 
                     b.Property<int>("MedicalRecordId")
                         .HasColumnType("int");
@@ -482,6 +496,8 @@ namespace DataAccessObjects.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("MedicalRecordId");
+
+                    b.HasIndex("DispensedByUserId");
 
                     b.HasIndex("MedicineId");
 
@@ -838,7 +854,14 @@ namespace DataAccessObjects.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("BusinessObjects.Entities.User", "Cashier")
+                        .WithMany()
+                        .HasForeignKey("CashierId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Appointment");
+
+                    b.Navigation("Cashier");
                 });
 
             modelBuilder.Entity("BusinessObjects.Entities.PrescriptionDetail", b =>
@@ -855,9 +878,16 @@ namespace DataAccessObjects.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("BusinessObjects.Entities.User", "DispensedBy")
+                        .WithMany()
+                        .HasForeignKey("DispensedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("MedicalRecord");
 
                     b.Navigation("Medicine");
+
+                    b.Navigation("DispensedBy");
                 });
 
             modelBuilder.Entity("BusinessObjects.Entities.Room", b =>
