@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Services;
 using System.Threading.Tasks;
@@ -13,7 +14,13 @@ namespace OCMSMVC.Controllers
             _receptionService = receptionService;
         }
 
-        // GET: /Queue/Display (Màn hình TV sảnh chờ)
+        private bool RequireClinicPersonnel()
+        {
+            var role = HttpContext.Session.GetString("Role");
+            return role is "Staff" or "Doctor" or "Admin";
+        }
+
+        // GET: /Queue/Display (Màn hình TV sảnh chờ - Công khai tại sảnh phòng khám)
         [HttpGet]
         public async Task<IActionResult> Display()
         {
@@ -29,10 +36,15 @@ namespace OCMSMVC.Controllers
             return Json(boardData);
         }
 
-        // GET: /Queue/Dispatch (Bảng điều phối gọi số dành cho nhân viên / bác sĩ)
+        // GET: /Queue/Dispatch (Bảng điều phối gọi số dành cho nhân viên lễ tân / bác sĩ)
         [HttpGet]
         public async Task<IActionResult> Dispatch()
         {
+            if (!RequireClinicPersonnel())
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
             var boardData = await _receptionService.GetLobbyQueueBoardDataAsync();
             return View(boardData);
         }
@@ -42,6 +54,11 @@ namespace OCMSMVC.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CallPatient(int appointmentId)
         {
+            if (!RequireClinicPersonnel())
+            {
+                return Json(new { success = false, message = "Bạn không có quyền thực hiện thao tác này." });
+            }
+
             var result = await _receptionService.CallNextPatientAsync(appointmentId);
 
             if (!result.Success || result.Appointment == null)
@@ -68,6 +85,11 @@ namespace OCMSMVC.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CompleteConsultation(int appointmentId)
         {
+            if (!RequireClinicPersonnel())
+            {
+                return Json(new { success = false, message = "Bạn không có quyền thực hiện thao tác này." });
+            }
+
             var result = await _receptionService.CompleteConsultationAsync(appointmentId);
             return Json(new { success = result.Success, message = result.Message });
         }

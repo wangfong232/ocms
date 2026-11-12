@@ -4,12 +4,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace OCMSMVC.Models;
 
-public class AdminDashboardViewModel
-{
-    public IReadOnlyList<User> Users { get; init; } = [];
-    public IReadOnlyList<Department> Departments { get; init; } = [];
-    public IReadOnlyList<Room> Rooms { get; init; } = [];
-}
+
 
 public class AdminAccountCreateViewModel
 {

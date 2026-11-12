@@ -27,6 +27,16 @@ namespace OCMSMVC.Controllers
             return View();
         }
 
+        [HttpGet]
+        public async Task<IActionResult> DoctorDirectory(int? specialtyId, int? departmentId, string? term, DateTime? targetDate, DateTime? date, int? doctorId)
+        {
+            if (doctorId.HasValue && doctorId.Value > 0)
+            {
+                return RedirectToAction(nameof(SelectSlot), new { doctorId = doctorId.Value, date = targetDate ?? date ?? DateTime.Today });
+            }
+            return await Search(departmentId ?? specialtyId, term, targetDate ?? date);
+        }
+
         public async Task<IActionResult> Search(int? departmentId, string? term, DateTime? date)
         {
             var targetDate = date?.Date ?? DateTime.Today;

@@ -1,8 +1,10 @@
 using BusinessObjects.Entities;
 using DataAccessObjects;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using OCMSMVC.Models;
 using Services;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace OCMSMVC.Controllers
@@ -18,10 +20,21 @@ namespace OCMSMVC.Controllers
             _context = context;
         }
 
+        private bool RequireStaff()
+        {
+            var role = HttpContext.Session.GetString("Role");
+            return role is "Staff" or "Admin";
+        }
+
         // GET: /Reception/CheckIn
         [HttpGet]
         public async Task<IActionResult> CheckIn(int? appointmentId, string? message, string? messageType)
         {
+            if (!RequireStaff())
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
             Appointment? appointment = null;
             if (appointmentId.HasValue)
             {
@@ -42,6 +55,11 @@ namespace OCMSMVC.Controllers
         [HttpGet]
         public IActionResult ResetDemo()
         {
+            if (!RequireStaff())
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
             DbInitializer.ResetDemoData(_context);
             return RedirectToAction(nameof(CheckIn), new
             {
@@ -55,6 +73,11 @@ namespace OCMSMVC.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Search(string query)
         {
+            if (!RequireStaff())
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
             if (string.IsNullOrWhiteSpace(query))
             {
                 return RedirectToAction(nameof(CheckIn), new
@@ -91,6 +114,11 @@ namespace OCMSMVC.Controllers
             decimal? weight,
             decimal? height)
         {
+            if (!RequireStaff())
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
             var result = await _receptionService.CheckInAsync(
                 appointmentId,
                 systolicBP,
@@ -114,6 +142,11 @@ namespace OCMSMVC.Controllers
         [HttpGet]
         public async Task<IActionResult> GetTodayAppointments()
         {
+            if (!RequireStaff())
+            {
+                return Json(new object[0]);
+            }
+
             var list = await _receptionService.GetTodayAppointmentsAsync();
 
             var data = list.Select(a => new
@@ -136,6 +169,11 @@ namespace OCMSMVC.Controllers
         [HttpGet]
         public async Task<IActionResult> WalkIn()
         {
+            if (!RequireStaff())
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
             ViewBag.Doctors = await _receptionService.GetAvailableDoctorsTodayAsync();
             return View(new WalkInViewModel());
         }
@@ -144,6 +182,11 @@ namespace OCMSMVC.Controllers
         [HttpGet]
         public async Task<IActionResult> GetDoctorSlots(int doctorId)
         {
+            if (!RequireStaff())
+            {
+                return Json(new object[0]);
+            }
+
             var slots = await _receptionService.GetOpenSlotsForDoctorTodayAsync(doctorId);
             var data = slots.Select(s => new
             {
@@ -159,6 +202,11 @@ namespace OCMSMVC.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> WalkIn(WalkInViewModel model)
         {
+            if (!RequireStaff())
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
             if (!ModelState.IsValid)
             {
                 ViewBag.Doctors = await _receptionService.GetAvailableDoctorsTodayAsync();

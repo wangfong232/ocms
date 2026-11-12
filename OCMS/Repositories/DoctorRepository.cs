@@ -64,9 +64,7 @@ namespace Repositories
                 .Where(r => r.IsOperational)
                 .ToListAsync();
         }
-    }
-}
-
+ 
 
         public async Task<List<Department>> GetAllDepartmentAsync()
         {
