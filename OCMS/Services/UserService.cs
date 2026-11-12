@@ -10,15 +10,15 @@ namespace Services
 {
     public class UserService : IUserService
     {
-        private readonly IUserRepository _userRepository;
+        private readonly IUserRepository userRepository;
         public UserService(IUserRepository userRepository)
         {
-            _userRepository = userRepository;
+            this.userRepository = userRepository;
         }
 
         public async Task<User?> AuthenticateAsync(string email, string password)
         {
-            var user = await _userRepository.GetByEmailAsync(email);
+            var user = await userRepository.GetByEmailAsync(email);
             if (user == null || !user.IsActive)
             {
                 return null;
@@ -35,12 +35,12 @@ namespace Services
         }
         public async Task<User> RegisterPatientAsync(string fullName, string email, string phoneNumber, string password)
         {
-            if (await _userRepository.ExistsByEmailAsync(email))
+            if (await userRepository.ExistsByEmailAsync(email))
             {
                 throw new InvalidOperationException("User with this email already exists.");
             }
 
-            if(await _userRepository.ExistsByPhoneNumberAsync(phoneNumber))
+            if (await userRepository.ExistsByPhoneNumberAsync(phoneNumber))
             {
                 throw new InvalidOperationException("User with this phone number already exists.");
             }
@@ -60,34 +60,69 @@ namespace Services
                     DateOfBirth = DateTime.Today.AddYears(-20)
                 }
             };
-            return await _userRepository.AddAsync(newUser);
+            return await userRepository.AddAsync(newUser);
         }
 
         public async Task<User?> GetUserbyEmailAsync(string email)
         {
-            return await _userRepository.GetByEmailAsync(email);
+            return await userRepository.GetByEmailAsync(email);
         }
 
         public async Task<User?> GetUserByIdAsync(int id)
         {
-            return await _userRepository.GetByIdAsync(id);
-        }        
+            return await userRepository.GetByIdAsync(id);
+        }
 
-        public async Task<bool> ResetPasswordAsync(string email, string newPassword){
-            var user = await _userRepository.GetByEmailAsync(email);
-            if(user==null)
+        public async Task<bool> ResetPasswordAsync(string email, string newPassword)
+        {
+            var user = await userRepository.GetByEmailAsync(email);
+            if (user == null)
             {
                 return false;
             }
 
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
-            await _userRepository.UpdateAsync(user);
+            await userRepository.UpdateAsync(user);
             return true;
         }
 
-        public async Task<bool> Test(User user)
+        public async Task<bool> UpdateProfileAsync(int userId, string fullName, string phoneNumber, DateTime? dob, string? gender, string? address, string? healthInsuranceNumber)
         {
-            return await _userRepository.ExistsByEmailAsync(user.Email);
+            var user = await userRepository.GetByIdAsync(userId);
+            if (user == null) return false;
+
+            user.FullName = fullName.Trim();
+            user.PhoneNumber = phoneNumber.Trim();
+
+            if (user.Patient != null)
+            {
+                if (dob.HasValue) user.Patient.DateOfBirth = dob.Value;
+                if (!string.IsNullOrEmpty(gender)) user.Patient.Gender = gender;
+                user.Patient.Address = address?.Trim();
+                user.Patient.HealthInsuranceNumber = healthInsuranceNumber?.Trim();
+            }
+            await userRepository.UpdateAsync(user);
+            return true;
         }
+
+        public async Task<(bool Success, string Message)> ChangePasswordAsync(int userId, string currentPassword, string newPassword)
+        {
+            var user = await userRepository.GetByIdAsync(userId);
+            if (user == null) return (false, "Người dùng không tồn tại.");
+
+            if (!BCrypt.Net.BCrypt.Verify(currentPassword, user.PasswordHash))
+            {
+                return (false, "Mật khẩu hiện tại không chính xác.");
+            }
+
+            if (currentPassword == newPassword)
+            {
+                return (false, "Mật khẩu mới không được trùng với mật khẩu hiện tại.");
+            }
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+            await userRepository.UpdateAsync(user);
+            return (true, "Đổi mật khẩu thành công!");
+        }
+
     }
 }

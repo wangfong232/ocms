@@ -1,0 +1,228 @@
+@model List<Services.RoomQueueDto>
+@{
+    ViewData["Title"] = "Màn Hình TV Sảnh Chờ";
+    Layout = "_Layout";
+}
+
+<div class="container-fluid py-3">
+    <!-- Tiêu đề màn hình TV -->
+    <div class="bg-primary text-white p-4 rounded-4 shadow-sm mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-1"><i class="bi bi-tv me-2"></i>BẢNG GỌI SỐ KHÁM BỆNH - SẢNH CHỜ</h2>
+            <small class="opacity-75">Hệ thống Outpatient Clinic Management System (OCMS)</small>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            <button type="button" id="btnEnableSound" class="btn btn-warning btn-sm fw-bold" onclick="enableSound()">
+                <i class="bi bi-volume-up-fill me-1"></i>Bật Âm Thanh Chuông
+            </button>
+            <div class="text-end">
+                <h3 id="clock" class="fw-bold text-warning font-monospace mb-0">--:--:--</h3>
+                <small id="currentDate" class="text-white-50">Hôm nay</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Thông báo gọi số mới nhất -->
+    <div id="callBanner" class="alert alert-warning border-2 border-warning py-3 px-4 rounded-4 shadow-sm mb-4" style="display: none;">
+        <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-3">
+                <span class="badge bg-danger fs-3 px-3 py-2" id="callQueueNum">#--</span>
+                <div>
+                    <h4 class="mb-0 fw-bold text-danger" id="callPatientText">Xin mời bệnh nhân vào phòng khám</h4>
+                    <span class="text-dark" id="callRoomText">Phòng khám</span>
+                </div>
+            </div>
+            <span class="badge bg-warning text-dark fs-6 px-3 py-2">
+                <i class="bi bi-megaphone-fill me-1"></i>Đang gọi vào
+            </span>
+        </div>
+    </div>
+
+    <!-- Danh sách các phòng khám -->
+    <div class="row g-4" id="roomsList">
+        @if (!Model.Any())
+        {
+            <div class="col-12 text-center py-5">
+                <h5 class="text-muted">Chưa có phòng khám nào hoạt động hôm nay.</h5>
+            </div>
+        }
+        else
+        {
+            @foreach (var room in Model)
+            {
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 border-2 shadow-sm rounded-4 overflow-hidden">
+                        <!-- Header Phòng -->
+                        <div class="card-header bg-light py-3 px-4 d-flex justify-content-between align-items-center">
+                            <h5 class="fw-bold text-primary mb-0">PHÒNG @room.RoomNumber</h5>
+                            <span class="badge bg-secondary">@room.DepartmentName</span>
+                        </div>
+
+                        <div class="card-body p-4 text-center">
+                            <small class="text-muted d-block mb-3">Bác sĩ: <strong>@room.DoctorName</strong></small>
+
+                            <!-- Ca đang khám -->
+                            <div class="p-3 bg-light rounded-3 mb-3 border">
+                                <small class="text-success text-uppercase fw-bold d-block mb-1">
+                                    <i class="bi bi-person-fill-check me-1"></i>Đang khám
+                                </small>
+                                @if (room.CurrentPatient != null)
+                                {
+                                    <div class="display-5 fw-bold text-danger font-monospace">
+                                        #@room.CurrentPatient.QueueNumber
+                                    </div>
+                                    <div class="fw-bold fs-5 text-dark mt-1">@room.CurrentPatient.PatientName</div>
+                                }
+                                else
+                                {
+                                    <div class="display-6 fw-bold text-secondary font-monospace">--</div>
+                                    <small class="text-muted">Đang chờ bệnh nhân</small>
+                                }
+                            </div>
+
+                            <!-- Hàng đợi chờ khám -->
+                            <div class="text-start">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <small class="fw-bold text-secondary">Số tiếp theo chờ gọi:</small>
+                                    <span class="badge bg-light text-dark border">@room.WaitingQueue.Count người</span>
+                                </div>
+                                <div class="d-flex flex-wrap gap-1">
+                                    @if (!room.WaitingQueue.Any())
+                                    {
+                                        <small class="text-muted fst-italic">Hàng đợi đang trống</small>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var p in room.WaitingQueue.Take(4))
+                                        {
+                                            <span class="badge bg-warning text-dark fs-6 px-2 py-1">
+                                                #@p.QueueNumber - @p.PatientName
+                                            </span>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+<!-- Âm thanh chuông thông báo đơn giản (HTML5 Audio) -->
+<audio id="chimeSound" preload="auto">
+    <source src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" type="audio/ogg">
+</audio>
+
+@section Scripts {
+<script>
+    // 1. Cập nhật đồng hồ thời gian thực
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('clock').innerText = now.toLocaleTimeString('vi-VN');
+        document.getElementById('currentDate').innerText = now.toLocaleDateString('vi-VN');
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Bật âm thanh theo tương tác người dùng (tránh trình duyệt chặn autoplay)
+    function enableSound() {
+        const audio = document.getElementById('chimeSound');
+        audio.play().then(() => {
+            audio.pause();
+            audio.currentTime = 0;
+            const btn = document.getElementById('btnEnableSound');
+            btn.className = 'btn btn-success btn-sm fw-bold';
+            btn.innerHTML = '<i class="bi bi-volume-up-fill me-1"></i>Đã Bật Âm Thanh';
+        }).catch(() => {});
+    }
+
+    // 2. Tự động cập nhật dữ liệu bảng TV bằng AJAX Polling (chu kỳ 3 giây)
+    const lastRoomPatients = {};
+    let isFirstLoad = true;
+
+    function updateLobbyData() {
+        fetch('/Queue/GetLobbyData')
+            .then(response => response.json())
+            .then(rooms => {
+                const container = document.getElementById('roomsList');
+                if (!rooms || rooms.length === 0) return;
+
+                let html = '';
+                rooms.forEach(room => {
+                    const current = room.currentPatient;
+                    const waiting = room.waitingQueue || [];
+
+                    // Kiểm tra nếu phòng có bệnh nhân mới vừa được gọi vào khám
+                    const currentId = current ? current.appointmentId : null;
+                    if (!isFirstLoad && current && lastRoomPatients[room.roomId] !== currentId) {
+                        document.getElementById('callQueueNum').innerText = `#${current.queueNumber}`;
+                        document.getElementById('callPatientText').innerText = `Xin mời: ${current.patientName}`;
+                        document.getElementById('callRoomText').innerText = `Mời vào Phòng ${room.roomNumber} (${room.departmentName})`;
+                        document.getElementById('callBanner').style.display = 'block';
+
+                        const audio = document.getElementById('chimeSound');
+                        audio.currentTime = 0;
+                        audio.play().catch(() => {});
+                    }
+                    lastRoomPatients[room.roomId] = currentId;
+
+                    let currentHtml = '';
+                    if (current) {
+                        currentHtml = `
+                            <div class="display-5 fw-bold text-danger font-monospace">#${current.queueNumber}</div>
+                            <div class="fw-bold fs-5 text-dark mt-1">${current.patientName}</div>`;
+                    } else {
+                        currentHtml = `
+                            <div class="display-6 fw-bold text-secondary font-monospace">--</div>
+                            <small class="text-muted">Đang chờ bệnh nhân</small>`;
+                    }
+
+                    let waitingHtml = '';
+                    if (waiting.length === 0) {
+                        waitingHtml = '<small class="text-muted fst-italic">Hàng đợi đang trống</small>';
+                    } else {
+                        waiting.slice(0, 4).forEach(p => {
+                            waitingHtml += `<span class="badge bg-warning text-dark fs-6 px-2 py-1 me-1 mb-1">#${p.queueNumber} - ${p.patientName}</span>`;
+                        });
+                    }
+
+                    html += `
+                        <div class="col-md-6 col-lg-4">
+                            <div class="card h-100 border-2 shadow-sm rounded-4 overflow-hidden">
+                                <div class="card-header bg-light py-3 px-4 d-flex justify-content-between align-items-center">
+                                    <h5 class="fw-bold text-primary mb-0">PHÒNG ${room.roomNumber}</h5>
+                                    <span class="badge bg-secondary">${room.departmentName}</span>
+                                </div>
+                                <div class="card-body p-4 text-center">
+                                    <small class="text-muted d-block mb-3">Bác sĩ: <strong>${room.doctorName}</strong></small>
+                                    <div class="p-3 bg-light rounded-3 mb-3 border">
+                                        <small class="text-success text-uppercase fw-bold d-block mb-1">
+                                            <i class="bi bi-person-fill-check me-1"></i>Đang khám
+                                        </small>
+                                        ${currentHtml}
+                                    </div>
+                                    <div class="text-start">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <small class="fw-bold text-secondary">Số tiếp theo chờ gọi:</small>
+                                            <span class="badge bg-light text-dark border">${waiting.length} người</span>
+                                        </div>
+                                        <div class="d-flex flex-wrap">${waitingHtml}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>`;
+                });
+
+                isFirstLoad = false;
+                container.innerHTML = html;
+            })
+            .catch(err => console.debug("Lỗi cập nhật bảng TV:", err));
+    }
+
+    // Gọi lần đầu để lưu trạng thái hiện tại, sau đó cứ 3 giây cập nhật lại
+    updateLobbyData();
+    setInterval(updateLobbyData, 3000);
+</script>
+}

@@ -11,6 +11,7 @@ namespace Services
         Task<List<Doctor>> GetAllDoctorsAsync();
         Task<(bool Success, string Message)> UpdateDoctorProfileAsync(int doctorId, string fullName, string phoneNumber, string academicTitle, decimal pricePerSlot, int? defaultRoomId);
         Task<List<Room>> GetAvailableRoomsForDoctorAsync(int doctorId);
+        Task<IEnumerable<Doctor>> GetFeaturedDoctorsAsync(int count);
     }
 }
 

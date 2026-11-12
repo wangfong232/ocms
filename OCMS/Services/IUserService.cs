@@ -16,6 +16,7 @@ namespace Services
         Task<User?> GetUserbyEmailAsync(string email);
 
         Task<bool> ResetPasswordAsync(string email, string newPassword);
-
+        Task<bool> UpdateProfileAsync(int userId, string fullName, string phoneNumber, DateTime? dob, string? gender, string? address, string? healthInsuranceNumber);
+        Task<(bool Success, string Message)> ChangePasswordAsync(int userId, string currentPassword, string newPassword);
     }
 }

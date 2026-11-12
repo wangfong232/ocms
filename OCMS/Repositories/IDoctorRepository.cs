@@ -1,5 +1,8 @@
-using BusinessObjects.Entities;
+﻿using BusinessObjects.Entities;
+using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Repositories
@@ -12,6 +15,9 @@ namespace Repositories
         Task UpdateAsync(Doctor doctor);
         Task<List<Room>> GetRoomsByDepartmentIdAsync(int departmentId);
         Task<List<Room>> GetAllActiveRoomsAsync();
+       Task<List<Doctor>> GetDoctorsAsync(int? department, string? searchTerm);
+        Task<Doctor?> GetDoctorWithDetailsAsync(int doctorId);
+        Task<List<Department>> GetAllDepartmentAsync();
     }
 }
 

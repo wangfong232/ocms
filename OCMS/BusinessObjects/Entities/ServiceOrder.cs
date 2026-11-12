@@ -21,7 +21,7 @@ namespace BusinessObjects.Entities
         [MaxLength(500)]
         public string? ResultSummary { get; set; } 
         [Required, MaxLength(20)]
-        public string Status { get; set; } = "Ordered"; // Ordered, Completed
+        public string Status { get; set; } = "Ordered"; // Ordered, Completed, Paid
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         // Navigation Properties
         public Appointment Appointment { get; set; } = null!;

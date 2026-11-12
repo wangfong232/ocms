@@ -168,6 +168,11 @@ dotnet run --project OCMSMVC
 Open your browser and navigate to:
 * `https://localhost:7196` or `http://localhost:5196`
 
+### Staff billing and pharmacy
+
+* Staff/Admin can use **Billing** to settle completed appointments by Cash or POS, print receipts, and use **Pharmacy** to dispense paid prescriptions with an atomic stock deduction.
+* EF Core migrations are applied at startup. Existing databases created by the previous `EnsureCreated` initializer are adopted as the initial migration baseline before applying additive migrations.
+
 ---
 
 ## 🔑 Default Test Accounts

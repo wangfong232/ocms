@@ -158,17 +158,19 @@ namespace OCMSMVC.Controllers
             var sessionEmail = HttpContext.Session.GetString("ResetEmail");
             var expiresStr = HttpContext.Session.GetString("ResetExpires");
 
-            if(string.IsNullOrEmpty(sessionOtp) || string.IsNullOrEmpty(sessionEmail) || string.IsNullOrEmpty(expiresStr)){
+            if (string.IsNullOrEmpty(sessionOtp) || string.IsNullOrEmpty(sessionEmail) || string.IsNullOrEmpty(expiresStr))
+            {
                 ModelState.AddModelError(string.Empty, "Phiên đặt lại mật khẩu đã hết hạn. Vui lòng yêu cầu mã xác thực mới.");
                 return View(model);
             }
 
-            if(model.OtpCode.Trim() != sessionOtp || !model.Email.Trim().Equals(sessionEmail, StringComparison.OrdinalIgnoreCase)){
+            if (model.OtpCode.Trim() != sessionOtp || !model.Email.Trim().Equals(sessionEmail, StringComparison.OrdinalIgnoreCase))
+            {
                 ModelState.AddModelError("OtpCode", "Mã xác thực không hợp lệ.");
                 return View(model);
-                }
+            }
 
-                bool success = await _userService.ResetPasswordAsync(model.Email, model.NewPassword);
+            bool success = await _userService.ResetPasswordAsync(model.Email, model.NewPassword);
             if (!success)
             {
                 ModelState.AddModelError(string.Empty, "Không tìm thấy người dùng để cập nhật mật khẩu.");
@@ -194,6 +196,77 @@ namespace OCMSMVC.Controllers
                 "Staff" => RedirectToAction("Index", "Home"),
                 _ => RedirectToAction("Index", "Home"),
             };
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Profile()
+        {
+            int? userId = HttpContext.Session.GetInt32("UserId");
+            if (!userId.HasValue) return RedirectToAction("Login");
+            var user = await _userService.GetUserByIdAsync(userId.Value);
+            if (user == null) return RedirectToAction("Login");
+            var model = new ProfileViewModel
+            {
+                FullName = user.FullName,
+                Email = user.Email,
+                PhoneNumber = user.PhoneNumber ?? "",
+                Role = user.Role,
+                DateOfBirth = user.Patient?.DateOfBirth,
+                Gender = user.Patient?.Gender ?? "Other",
+                Address = user.Patient?.Address,
+                HealthInsuranceNumber = user.Patient?.HealthInsuranceNumber
+            };
+            return View(model);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Profile(ProfileViewModel model)
+        {
+            int? userId = HttpContext.Session.GetInt32("UserId");
+            if (!userId.HasValue) return RedirectToAction("Login");
+            if (!ModelState.IsValid) return View(model);
+            bool success = await _userService.UpdateProfileAsync(
+                userId.Value,
+                model.FullName,
+                model.PhoneNumber,
+                model.DateOfBirth,
+                model.Gender,
+                model.Address,
+                model.HealthInsuranceNumber);
+            if (success)
+            {
+                HttpContext.Session.SetString("FullName", model.FullName);
+                HttpContext.Session.SetString("PhoneNumber", model.PhoneNumber);
+                TempData["SuccessMessage"] = "Cập nhật hồ sơ cá nhân thành công!";
+            }
+            else
+            {
+                TempData["ErrorMessage"] = "Có lỗi xảy ra khi cập nhật thông tin.";
+            }
+            return RedirectToAction("Profile");
+        }
+
+        [HttpGet]
+        public IActionResult ChangePassword()
+        {
+            if (!HttpContext.Session.GetInt32("UserId").HasValue) return RedirectToAction("Login");
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
+        {
+            int? userId = HttpContext.Session.GetInt32("UserId");
+            if (!userId.HasValue) return RedirectToAction("Login");
+            if (!ModelState.IsValid) return View(model);
+            var (success, message) = await _userService.ChangePasswordAsync(userId.Value, model.CurrentPassword, model.NewPassword);
+            if (success)
+            {
+                TempData["SuccessMessage"] = message;
+                return RedirectToAction("Profile");
+            }
+            ModelState.AddModelError(string.Empty, message);
+            return View(model);
         }
     }
 

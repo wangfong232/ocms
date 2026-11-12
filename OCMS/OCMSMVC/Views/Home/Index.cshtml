@@ -1,8 +1,91 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@{
+    ViewData["Title"] = "Trang Chủ - Hệ Thống Phòng Khám OCMS";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="py-4">
+    <!-- Hero Banner -->
+    <div class="p-5 mb-4 bg-primary text-white rounded-4 shadow-sm position-relative overflow-hidden">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <span class="badge bg-warning text-dark fw-bold px-3 py-2 mb-3">Hệ Thống Quản Lý Tiếp Đón & Khám Bệnh Ngoại Trú</span>
+                <h1 class="display-5 fw-bold mb-3">Chào Mừng Đến Với OCMS Clinic</h1>
+                <p class="lead mb-4 opacity-90">
+                    Phần mềm quản lý phòng khám hiện đại: Quét tải ảnh QR vé khám &lt; 5s, đo chỉ số sinh hiệu Triage (BP, Pulse, SpO2), cập nhật hàng đợi tự động và bảng TV gọi số sảnh chờ.
+                </p>
+                <div class="d-flex flex-wrap gap-2">
+                    <a asp-controller="Reception" asp-action="CheckIn" class="btn btn-light btn-lg text-primary fw-bold px-4 shadow-sm">
+                        <i class="bi bi-qr-code-scan me-2"></i>Cổng Tiếp Đón & Check-In
+                    </a>
+                    <a asp-controller="Queue" asp-action="Display" target="_blank" class="btn btn-outline-light btn-lg px-4">
+                        <i class="bi bi-tv me-2"></i>Mở Bảng TV Sảnh Chờ
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-4 text-center d-none d-lg-block">
+                <i class="bi bi-hospital fs-1 text-white opacity-50" style="font-size: 10rem !important;"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3 Khối chức năng chính theo User Story -->
+    <div class="row g-4 mb-4">
+        <!-- Chức năng 1 -->
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm rounded-4 hover-shadow transition">
+                <div class="card-body p-4 d-flex flex-column">
+                    <div class="bg-primary-subtle text-primary rounded-4 p-3 mb-3 d-inline-block" style="width: 55px; height: 55px;">
+                        <i class="bi bi-qr-code-scan fs-3"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark">1. QR Check-In & Triage Vital Signs</h5>
+                    <p class="text-muted small flex-grow-1">
+                        Tải ảnh mã QR vé E-Ticket từ máy tính hoặc tra cứu theo Số điện thoại trong 5 giây, đo chỉ số sinh hiệu chuẩn (BP Huyết áp, Pulse Mạch, SpO2 Oxy máu, Nhiệt độ).
+                    </p>
+                    <a asp-controller="Reception" asp-action="CheckIn" class="btn btn-outline-primary fw-semibold mt-2">
+                        Vào Tiếp Đón & Check-In <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chức năng 2 -->
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm rounded-4 hover-shadow transition">
+                <div class="card-body p-4 d-flex flex-column">
+                    <div class="bg-success-subtle text-success rounded-4 p-3 mb-3 d-inline-block" style="width: 55px; height: 55px;">
+                        <i class="bi bi-broadcast fs-3"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark">2. TV Sảnh Chờ & Gọi Bệnh Nhân</h5>
+                    <p class="text-muted small flex-grow-1">
+                        Màn hình TV sảnh tự động cập nhật số khám và số phòng liên tục, phát chuông báo hiệu khi nhân viên hoặc bác sĩ bấm gọi bệnh nhân vào khám.
+                    </p>
+                    <div class="d-flex gap-2 mt-2">
+                        <a asp-controller="Queue" asp-action="Display" target="_blank" class="btn btn-success fw-semibold flex-fill">
+                            <i class="bi bi-tv me-1"></i>Xem TV Sảnh
+                        </a>
+                        <a asp-controller="Queue" asp-action="Dispatch" class="btn btn-outline-success fw-semibold flex-fill">
+                            <i class="bi bi-megaphone me-1"></i>Gọi Số Khám
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chức năng 3 -->
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm rounded-4 hover-shadow transition">
+                <div class="card-body p-4 d-flex flex-column">
+                    <div class="bg-warning-subtle text-warning rounded-4 p-3 mb-3 d-inline-block" style="width: 55px; height: 55px;">
+                        <i class="bi bi-person-plus fs-3"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark">3. Đăng Ký Bệnh Nhân Vãng Lai</h5>
+                    <p class="text-muted small flex-grow-1">
+                        Tiếp nhận bệnh nhân chưa đặt hẹn trước tại quầy, tự động xếp vào khung giờ trống (Filler slot) hoặc tạo slot Cấp cứu khẩn cấp (Emergency slot) và cấp số khám tức thì.
+                    </p>
+                    <a asp-controller="Reception" asp-action="WalkIn" class="btn btn-outline-warning text-dark fw-semibold mt-2">
+                        Đăng Ký Vãng Lai <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

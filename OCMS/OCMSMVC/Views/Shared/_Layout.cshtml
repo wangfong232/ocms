@@ -1,4 +1,4 @@
-@using Microsoft.AspNetCore.Http
+﻿@using Microsoft.AspNetCore.Http
 
 <!DOCTYPE html>
 <html lang="en">
@@ -25,6 +25,26 @@
 					<ul class="navbar-nav me-auto mb-2 mb-lg-0">
 						<li class="nav-item">
 							<a class="nav-link" asp-controller="Home" asp-action="Index">Trang chủ</a>
+						</li>
+						<li class="nav-item">
+							<a class="nav-link" asp-controller="Reception" asp-action="CheckIn">
+								<i class="bi bi-qr-code-scan me-1"></i>Tiếp đón & Check-in
+							</a>
+						</li>
+						<li class="nav-item">
+							<a class="nav-link" asp-controller="Reception" asp-action="WalkIn">
+								<i class="bi bi-person-plus me-1"></i>Đăng ký vãng lai
+							</a>
+						</li>
+						<li class="nav-item">
+							<a class="nav-link text-warning fw-semibold" asp-controller="Queue" asp-action="Display" target="_blank">
+								<i class="bi bi-tv me-1"></i>TV Sảnh Chờ
+							</a>
+						</li>
+						<li class="nav-item">
+							<a class="nav-link" asp-controller="Queue" asp-action="Dispatch">
+								<i class="bi bi-broadcast me-1"></i>Gọi số khám
+							</a>
 						</li>
 						@if (Context.Session.GetString("Role") == "Doctor")
 						{

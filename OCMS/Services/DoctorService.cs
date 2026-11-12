@@ -1,6 +1,8 @@
-using BusinessObjects.Entities;
-using Repositories;
+﻿using BusinessObjects.Entities;
+using DataAccessObjects;
+using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Services
@@ -91,6 +93,23 @@ namespace Services
             await _doctorRepo.UpdateAsync(doctor);
             return (true, "Cập nhật hồ sơ bác sĩ và biểu phí khám thành công!");
         }
+        private readonly OcmsDbContext _dbContext;
+
+        public DoctorService(OcmsDbContext dbContext)
+        {
+            _dbContext = dbContext;
+        }
+
+        public async Task<IEnumerable<Doctor>> GetFeaturedDoctorsAsync(int count)
+        {
+            return await _dbContext.Doctors
+                .Include(d => d.User)
+                .Include(d => d.Department)
+                .Take(count)
+                .ToListAsync();
+        }
     }
+    
 }
 
+   
