@@ -1,0 +1,90 @@
+﻿@model OCMSMVC.Models.BookingSuccessViewModel
+@{
+	ViewData["Title"] = "Đặt Lịch Khám Thành Công - Vé Khám Điện Tử";
+	string qrImageUrl = $"https://api.qrserver.com/v1/create-qr-code/?size=180x180&data={Model.QrCodeToken}";
+}
+
+<div class="container py-4" style="max-width: 750px;">
+
+	<div class="text-center mb-4">
+		<div class="d-inline-flex p-3 rounded-circle bg-success-subtile text-success mb-2">
+			<i class="bi bi-check-circle-fill"></i>
+		</div>
+		<h3 class="fw-bold text-success">Đặt Lịch Khám Thành Công</h3>
+		<p class="text-muted">Mã lịch hẹn của bạn là <strong class="text-dark">@Model.AppointmentId</strong></p>
+	</div>
+
+	<!-- E-Ticket) -->
+	<div class="card border-1 rounded-4 overflow-hidden mb-4" id="printableTicket">
+		<div class="card-header bg-primary text-white p-3 text-center">
+			<h5 class="mb-0 fw-bold">PHÒNG KHÁM ĐA KHOA OCMS</h5>
+			<small class="opacity-75">Phiếu Đặt Khám & Vé Vào Cửa Điện Tử</small>
+		</div>
+		<div class="card-body p-4">
+			<div class="row align-items-center">
+				<div class="col-md-4 text-center border-end-md pb-3 pb-md-0">
+					<img src="@qrImageUrl" alt="Mã QR Vé Khám" class="img-fluid rounded border-1 p-2 bg-white " style="max-width: 170px;" />
+					<div class="mt-2 small fw-bold text-muted font-monospace">@Model.QrCodeToken</div>
+					<small class="text-primary d-block mt-1"><i class="bi bi-qr-code-scan me-1"></i>Quét mã tại quầy lễ tân</small>
+				</div>
+
+				<!-- Chi tiết lịch khám -->
+				<div class="col-md-8">
+					<div class="mb-2">
+						<small class="text-muted d-block">Bệnh nhân:</small>
+						<strong>@Model.PatientName</strong> - <span>@Model.PatientPhone</span>
+					</div>
+					<div class="mb-2">
+						<small class="text-muted d-block">Bác sĩ khám:</small>
+						<strong class="text-primary">@Model.AcademicTitle @Model.DoctorName</strong>
+					</div>
+					<div class="row g-2 mb-2">
+						<div class="col-6">
+							<small class="text-muted d-block">Chuyên khoa:</small>
+							<strong>@Model.DepartmentName</strong>
+						</div>
+						<div class="col-6">
+							<small class="text-muted d-block">Phòng khám:</small>
+							<span class="badge bg-secondary">Phòng @Model.RoomNumber</span>
+						</div>
+					</div>
+					<div class="row g-2 mb-2">
+						<div class="col-6">
+							<small class="text-muted d-block">Ngày khám:</small>
+							<strong>@Model.AppointmentDate.ToString("dd/MM/yyyy")</strong>
+						</div>
+						<div class="col-6">
+							<small class="text-muted d-block">Khung giờ:</small>
+							<span class="badge bg-success">@Model.StartTime.ToString(@"hh\:mm") - @Model.EndTime.ToString(@"hh\:mm")</span>
+						</div>
+					</div>
+
+					@if (!string.IsNullOrEmpty(Model.Reason))
+					{
+						<div class="mb-2">
+							<small class="text-muted d-block">Triệu chứng ban đầu:</small>
+							<span class="text-muted small fst-italic">@Model.Reason</span>
+						</div>
+					}
+					<hr class="my-2">
+					<div class="d-flex justify-content-between align-items-center">
+						<small class="text-muted">Phí khám:</small>
+						<span class="fw-bold text-danger">@Model.ConsultationFee.ToString() VNĐ</span>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="card-footer bg-light p-3 small text-muted text-center">
+			<i class="bi bi-info-circle me-1"></i> Quý khách vui lòng có mặt trước giờ hẹn <strong>15 phút</strong> và đưa mã QR này cho nhân viên lễ tân để làm thủ tục vào phòng khám.
+		</div>
+	</div>
+
+	<div class="d-flex justify-content-between gap-2">
+		<a asp-action="Index" asp-controller="Home" class="btn btn-outline-secondary">
+			<i class="bi bi-house me-1"></i> Trang chủ
+		</a>
+		<button type="button" class="btn btn-outline-primary" onclick="window.print()">
+			<i class="bi bi-printer me-1"></i> In vé khám
+		</button>
+	</div>
+</div>

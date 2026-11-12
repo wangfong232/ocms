@@ -24,9 +24,12 @@ namespace BusinessObjects.Entities
 
         [Required, MaxLength(20)]
         public string Status { get; set; } = "Pending"; // Pending, Paid, Dispensed
+        public DateTime? DispensedAt { get; set; }
+        public int? DispensedByUserId { get; set; }
 
         // Navigation Properties
         public MedicalRecord MedicalRecord { get; set; } = null!;
         public Medicine Medicine { get; set; } = null!;
+        public User? DispensedBy { get; set; }
     }
 }

@@ -1,0 +1,59 @@
+﻿@model OCMSMVC.Models.AdminDashboardViewModel
+
+@{
+    ViewData["Title"] = "Admin Analytics Dashboard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h1>Quản trị hệ thống (Admin Dashboard)</h1>
+<hr />
+
+<h3>1. Thống kê Tổng quan</h3>
+<ul style="font-size: 1.2rem; line-height: 2;">
+    <li><strong>Tổng Doanh Thu:</strong> @Model.TotalRevenue.ToString("N0") VNĐ</li>
+    <li><strong>Tổng Bệnh Nhân:</strong> @Model.TotalPatients người</li>
+    <li><strong>Tổng Lượt Khám:</strong> @Model.TotalAppointments lượt</li>
+    <li><strong>Tỷ Lệ Hủy Lịch:</strong> @Model.CancellationRate %</li>
+</ul>
+
+<br />
+
+<h3>2. Doanh thu theo tháng (Năm nay)</h3>
+<table class="table table-striped table-bordered">
+    <thead class="table-dark">
+        <tr>
+            <th>Tháng</th>
+            <th>Doanh Thu (VNĐ)</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model.RevenueByMonth)
+        {
+            <tr>
+                <td>@item.Key</td>
+                <td>@item.Value.ToString("N0")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<br />
+
+<h3>3. Phân bổ lượt khám theo Chuyên khoa</h3>
+<table class="table table-striped table-bordered">
+    <thead class="table-dark">
+        <tr>
+            <th>Tên Chuyên Khoa</th>
+            <th>Số Lượt Khám</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model.AppointmentsByDepartment)
+        {
+            <tr>
+                <td>@item.Key</td>
+                <td>@item.Value</td>
+            </tr>
+        }
+    </tbody>
+</table>

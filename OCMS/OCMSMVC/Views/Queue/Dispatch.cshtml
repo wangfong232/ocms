@@ -1,0 +1,173 @@
+@model List<Services.RoomQueueDto>
+@{
+    ViewData["Title"] = "Điều Phối Gọi Số Khám";
+}
+
+<div class="container py-4">
+    <!-- Tiêu đề -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-primary mb-1">
+                <i class="bi bi-broadcast me-2"></i>Bảng Điều Phối Hàng Đợi & Gọi Số
+            </h3>
+            <p class="text-muted mb-0">Dành cho Bác sĩ & Nhân viên y tế gọi bệnh nhân vào phòng khám hoặc hoàn tất ca khám.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-action="Display" target="_blank" class="btn btn-outline-primary">
+                <i class="bi bi-tv me-1"></i>Mở Màn Hình TV Sảnh Chờ
+            </a>
+            <a asp-controller="Reception" asp-action="CheckIn" class="btn btn-outline-secondary">
+                <i class="bi bi-person-check me-1"></i>Về Trang Tiếp Đón
+            </a>
+        </div>
+    </div>
+
+    <!-- Thông báo kết quả -->
+    <div id="alertBox" class="alert alert-success alert-dismissible fade show rounded-3 shadow-sm mb-4" style="display: none;" role="alert">
+        <span id="alertMessage"></span>
+        <button type="button" class="btn-close" onclick="this.parentElement.style.display='none'"></button>
+    </div>
+
+    <!-- Danh sách phòng và hàng đợi -->
+    <div class="row g-4">
+        @if (!Model.Any())
+        {
+            <div class="col-12 text-center py-5">
+                <div class="alert alert-light border p-4 rounded-3 text-muted">
+                    Chưa có lịch trực phòng khám nào hôm nay.
+                </div>
+            </div>
+        }
+        else
+        {
+            @foreach (var room in Model)
+            {
+                <div class="col-lg-6">
+                    <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+                        <div class="card-header bg-primary text-white py-3 px-4 d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="fw-bold mb-0">Phòng @room.RoomNumber - @room.DepartmentName</h5>
+                                <small class="text-light opacity-75">Bác sĩ: @room.DoctorName</small>
+                            </div>
+                            <span class="badge bg-light text-primary fs-6">Chờ: @room.WaitingQueue.Count</span>
+                        </div>
+                        <div class="card-body p-4">
+                            <!-- Ca đang khám -->
+                            <div class="border rounded-3 p-3 mb-4 bg-light">
+                                <small class="text-muted text-uppercase fw-bold d-block mb-1">Đang khám trong phòng:</small>
+                                @if (room.CurrentPatient != null)
+                                {
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <span class="badge bg-danger fs-5 me-2">#@room.CurrentPatient.QueueNumber</span>
+                                            <strong class="fs-5 text-dark">@room.CurrentPatient.PatientName</strong>
+                                            <div class="text-muted small">SĐT: @room.CurrentPatient.MaskedPhone | Giờ hẹn: @room.CurrentPatient.AppointmentTime</div>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-success fw-semibold" 
+                                                onclick="completeConsultation(@room.CurrentPatient.AppointmentId)">
+                                            <i class="bi bi-check2-circle me-1"></i>Hoàn tất khám
+                                        </button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="text-muted fst-italic">Phòng hiện đang trống.</span>
+                                }
+                            </div>
+
+                            <!-- Hàng đợi bệnh nhân đang chờ -->
+                            <h6 class="fw-bold text-dark mb-3">Danh sách chờ khám (Đã check-in):</h6>
+                            @if (!room.WaitingQueue.Any())
+                            {
+                                <div class="text-muted fst-italic py-3 text-center border rounded-3 bg-white">
+                                    Không có bệnh nhân nào đang chờ.
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="list-group border rounded-3">
+                                    @foreach (var p in room.WaitingQueue)
+                                    {
+                                        <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                            <div>
+                                                <span class="badge bg-warning text-dark fs-5 font-monospace me-2">#@p.QueueNumber</span>
+                                                <strong class="text-dark">@p.PatientName</strong>
+                                                <small class="text-muted d-block ms-1">SĐT: @p.MaskedPhone | Giờ hẹn: @p.AppointmentTime</small>
+                                            </div>
+                                            <button type="button" class="btn btn-success fw-bold px-3 py-2" onclick="callPatient(@p.AppointmentId)">
+                                                <i class="bi bi-megaphone-fill me-1"></i> Gọi Vào Khám
+                                            </button>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@Html.AntiForgeryToken()
+
+@section Scripts {
+<script>
+    function getToken() {
+        return document.querySelector('input[name="__RequestVerificationToken"]').value;
+    }
+
+    function showAlert(msg, isSuccess = true) {
+        const box = document.getElementById('alertBox');
+        box.className = `alert alert-${isSuccess ? 'success' : 'danger'} alert-dismissible fade show rounded-3 shadow-sm mb-4`;
+        document.getElementById('alertMessage').innerText = msg;
+        box.style.display = 'block';
+    }
+
+    // 1. Gọi bệnh nhân vào khám
+    function callPatient(appointmentId) {
+        const form = new FormData();
+        form.append('appointmentId', appointmentId);
+        form.append('__RequestVerificationToken', getToken());
+
+        fetch('/Queue/CallPatient', {
+            method: 'POST',
+            body: form
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(`Đã gọi số #${data.queueNumber} (${data.patientName}) vào phòng ${data.roomNumber}!`);
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert(data.message, false);
+            }
+        })
+        .catch(err => showAlert("Lỗi kết nối khi gọi bệnh nhân.", false));
+    }
+
+    // 2. Hoàn tất ca khám
+    function completeConsultation(appointmentId) {
+        if (!confirm('Xác nhận hoàn tất ca khám cho bệnh nhân này?')) return;
+
+        const form = new FormData();
+        form.append('appointmentId', appointmentId);
+        form.append('__RequestVerificationToken', getToken());
+
+        fetch('/Queue/CompleteConsultation', {
+            method: 'POST',
+            body: form
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showAlert("Đã hoàn tất ca khám!");
+                setTimeout(() => location.reload(), 800);
+            } else {
+                showAlert(data.message, false);
+            }
+        })
+        .catch(err => showAlert("Lỗi kết nối khi hoàn tất khám.", false));
+    }
+</script>
+}

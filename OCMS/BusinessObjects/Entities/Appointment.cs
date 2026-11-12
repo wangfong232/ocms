@@ -19,6 +19,9 @@ namespace BusinessObjects.Entities
         [ForeignKey("TimeSlot")]
         public int TimeSlotId { get; set; }
         public DateTime AppointmentDate { get; set; }
+        // Snapshot of the consultation fee at booking time. Null is retained for legacy appointments.
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? ConsultationFee { get; set; }
         [Required, MaxLength(30)]
         public string Status { get; set; } = "Pending"; // Pending, Confirmed, Arrived, InConsultation, Completed, Cancelled
         [MaxLength(500)]
