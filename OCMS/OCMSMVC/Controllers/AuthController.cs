@@ -191,7 +191,7 @@ namespace OCMSMVC.Controllers
 
             return role switch
             {
-                "Admin" => RedirectToAction("Index", "Home"),
+                "Admin" => RedirectToAction("Index", "Admin"),
                 "Doctor" => RedirectToAction("Index", "DoctorSchedule"),
                 "Staff" => RedirectToAction("Index", "Home"),
                 _ => RedirectToAction("Index", "Home"),
