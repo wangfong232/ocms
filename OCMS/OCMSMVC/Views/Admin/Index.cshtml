@@ -1,0 +1,11 @@
+@model OCMSMVC.Models.AdminDashboardViewModel
+@{ ViewData["Title"] = "Quản trị phòng khám"; }
+<div class="mb-4"><p class="text-uppercase text-primary fw-semibold small mb-1">Quản trị hệ thống</p><h1 class="h3">Danh mục và tài khoản phòng khám</h1></div>
+@if (TempData["ErrorMessage"] is string error) { <div class="alert alert-danger">@error</div> }
+@if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success">@success</div> }
+<div class="row g-3">
+    <div class="col-md-4"><a class="card card-body h-100 text-decoration-none shadow-sm" asp-action="Users"><span class="text-muted">Tài khoản</span><strong class="display-6">@Model.Users.Count</strong><span>Quản lý nhân viên, bác sĩ và trạng thái truy cập →</span></a></div>
+    <div class="col-md-4"><a class="card card-body h-100 text-decoration-none shadow-sm" asp-action="Departments"><span class="text-muted">Khoa</span><strong class="display-6">@Model.Departments.Count</strong><span>Cấu hình khoa và phí khám cơ bản →</span></a></div>
+    <div class="col-md-4"><a class="card card-body h-100 text-decoration-none shadow-sm" asp-action="Rooms"><span class="text-muted">Phòng</span><strong class="display-6">@Model.Rooms.Count</strong><span>Quản lý phòng và trạng thái hoạt động →</span></a></div>
+</div>
+<div class="alert alert-info mt-4 mb-0">Tài khoản bác sĩ được tạo cùng hồ sơ bác sĩ. Tài khoản bệnh nhân được đăng ký qua trang đăng ký.</div>

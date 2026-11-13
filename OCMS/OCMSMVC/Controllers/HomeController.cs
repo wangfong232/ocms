@@ -1,32 +1,32 @@
 using Microsoft.AspNetCore.Mvc;
 using OCMSMVC.Models;
-using System.Diagnostics;
+using Services; 
 
 namespace OCMSMVC.Controllers
 {
     public class HomeController : Controller
     {
-        private readonly ILogger<HomeController> _logger;
+        private readonly IDepartmentService _departmentService;
+        private readonly IDoctorService _doctorService;
 
-        public HomeController(ILogger<HomeController> logger)
+        public HomeController(IDepartmentService departmentService, IDoctorService doctorService)
         {
-            _logger = logger;
+            _departmentService = departmentService;
+            _doctorService = doctorService;
         }
 
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
-            return View();
-        }
+            var specialties = await _departmentService.GetAllDepartmentsAsync();
+            var featuredDoctors = await _doctorService.GetFeaturedDoctorsAsync(4);
 
-        public IActionResult Privacy()
-        {
-            return View();
-        }
+            var viewModel = new HomeViewModel
+            {
+                Specialties = specialties,
+                FeaturedDoctors = featuredDoctors
+            };
 
-        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public IActionResult Error()
-        {
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+            return View(viewModel);
         }
     }
 }

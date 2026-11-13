@@ -1,0 +1,24 @@
+@model OCMSMVC.Models.AdminAccountCreateViewModel
+@using BusinessObjects.Entities
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{ ViewData["Title"] = "Quản lý tài khoản"; var users = (IReadOnlyList<User>)ViewBag.Users; }
+<div class="d-flex justify-content-between align-items-center mb-3"><div><a asp-action="Index" class="text-decoration-none">← Quản trị</a><h1 class="h3 mt-2">Tài khoản nhân viên</h1></div></div>
+@if (TempData["ErrorMessage"] is string error) { <div class="alert alert-danger">@error</div> }
+@if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success">@success</div> }
+<div class="card shadow-sm border-0 mb-4"><div class="card-header bg-white fw-semibold">Tạo tài khoản</div><div class="card-body">
+<form asp-action="CreateUser" method="post"><div asp-validation-summary="ModelOnly" class="text-danger"></div>
+<div class="row g-3">
+<div class="col-md-6"><label asp-for="FullName" class="form-label">Họ tên</label><input asp-for="FullName" class="form-control" /><span asp-validation-for="FullName" class="text-danger"></span></div>
+<div class="col-md-6"><label asp-for="Email" class="form-label">Email</label><input asp-for="Email" class="form-control" /><span asp-validation-for="Email" class="text-danger"></span></div>
+<div class="col-md-4"><label asp-for="PhoneNumber" class="form-label">Số điện thoại</label><input asp-for="PhoneNumber" class="form-control" /><span asp-validation-for="PhoneNumber" class="text-danger"></span></div>
+<div class="col-md-4"><label asp-for="Password" class="form-label">Mật khẩu tạm (ít nhất 8 ký tự)</label><input asp-for="Password" type="password" class="form-control" /><span asp-validation-for="Password" class="text-danger"></span></div>
+<div class="col-md-4"><label asp-for="Role" class="form-label">Vai trò</label><select asp-for="Role" class="form-select"><option value="Staff">Staff</option><option value="Doctor">Doctor</option><option value="Admin">Admin</option></select></div>
+<div class="col-md-4"><label asp-for="DepartmentId" class="form-label">Khoa (bắt buộc với bác sĩ)</label><select asp-for="DepartmentId" class="form-select"><option value="">-- Chọn khoa --</option>@foreach (SelectListItem item in (IEnumerable<SelectListItem>)ViewBag.DepartmentOptions) { <option value="@item.Value">@item.Text</option> }</select></div>
+<div class="col-md-4"><label asp-for="DefaultRoomId" class="form-label">Phòng mặc định (tùy chọn)</label><select asp-for="DefaultRoomId" class="form-select"><option value="">-- Không chọn --</option>@foreach (SelectListItem item in (IEnumerable<SelectListItem>)ViewBag.RoomOptions) { <option value="@item.Value">@item.Text</option> }</select></div>
+<div class="col-md-2"><label asp-for="AcademicTitle" class="form-label">Học hàm</label><input asp-for="AcademicTitle" class="form-control" placeholder="BS" /></div>
+<div class="col-md-2"><label asp-for="PricePerSlot" class="form-label">Phí/lượt</label><input asp-for="PricePerSlot" class="form-control" type="number" min="0" /></div>
+</div><button class="btn btn-primary mt-3"><i class="bi bi-person-plus me-1"></i>Tạo tài khoản</button></form></div></div>
+<div class="card shadow-sm border-0"><div class="table-responsive"><table class="table align-middle mb-0"><thead class="table-light"><tr><th>Họ tên</th><th>Email / điện thoại</th><th>Vai trò</th><th>Khoa</th><th>Trạng thái</th><th></th></tr></thead><tbody>
+@foreach (var user in users) { <tr><td>@user.FullName</td><td>@user.Email<br /><small class="text-muted">@user.PhoneNumber</small></td><td>@user.Role</td><td>@(user.Doctor?.Department.Name ?? "—")</td><td><span class="badge @(user.IsActive ? "bg-success" : "bg-secondary")">@(user.IsActive ? "Hoạt động" : "Đã khóa")</span></td><td class="text-end"><form asp-action="ToggleUser" method="post" onsubmit="return confirm('Xác nhận thay đổi trạng thái tài khoản này?')"><input type="hidden" name="id" value="@user.Id" /><button class="btn btn-sm @(user.IsActive ? "btn-outline-danger" : "btn-outline-success")">@(user.IsActive ? "Khóa" : "Mở khóa")</button></form></td></tr> }
+@if (users.Count == 0) { <tr><td colspan="6" class="text-center text-muted py-4">Chưa có tài khoản.</td></tr> }
+</tbody></table></div></div>
