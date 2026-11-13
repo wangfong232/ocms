@@ -18,18 +18,18 @@ public class AdminController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Dashboard(CancellationToken ct)
+    public async Task<IActionResult> Dashboard()
     {
         if (!RequireAdmin()) return Denied();
 
         var viewModel = new AdminDashboardViewModel
         {
-            TotalRevenue = await _analyticsService.GetTotalRevenueAsync(ct),
-            TotalPatients = await _analyticsService.GetTotalPatientsAsync(ct),
-            TotalAppointments = await _analyticsService.GetTotalAppointmentsAsync(ct),
-            CancellationRate = await _analyticsService.GetCancellationRateAsync(ct),
-            RevenueByMonth = await _analyticsService.GetRevenueByMonthAsync(ct),
-            AppointmentsByDepartment = await _analyticsService.GetAppointmentsByDepartmentAsync(ct)
+            TotalRevenue = await _analyticsService.GetTotalRevenueAsync(),
+            TotalPatients = await _analyticsService.GetTotalPatientsAsync(),
+            TotalAppointments = await _analyticsService.GetTotalAppointmentsAsync(),
+            CancellationRate = await _analyticsService.GetCancellationRateAsync(),
+            RevenueByMonth = await _analyticsService.GetRevenueByMonthAsync(),
+            AppointmentsByDepartment = await _analyticsService.GetAppointmentsByDepartmentAsync()
         };
 
         return View(viewModel);
