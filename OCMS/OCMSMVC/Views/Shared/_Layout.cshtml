@@ -1,4 +1,4 @@
-﻿@using Microsoft.AspNetCore.Http
+@using Microsoft.AspNetCore.Http
 @inject IHttpContextAccessor HttpContextAccessor
 
 <!DOCTYPE html>
@@ -285,23 +285,27 @@
     </header>
 
     <!-- Main Body Container -->
-    <main role="main" class="flex-grow-1">
+    <main role="main" class="flex-grow-1 pb-4">
         @RenderBody()
     </main>
 
-    <!-- Footer -->
-    <footer class="border-top footer text-muted mt-auto py-4 bg-white">
-        <div class="container text-center small">
-            <div class="row align-items-center">
-                <div class="col-md-6 text-md-start mb-2 mb-md-0">
-                    <span class="fw-semibold text-primary"><i class="bi bi-hospital me-1"></i>OCMS Clinic</span> - Hệ Thống Quản Lý Tiếp Đón & Khám Bệnh Ngoại Trú
+    <!-- Global Notification Modal Popup -->
+    <div class="modal fade" id="appNotificationModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content border">
+                <div class="modal-header py-2" id="appNotificationHeader">
+                    <h6 class="modal-title fw-bold mb-0" id="appNotificationTitle">Thông báo</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="appNotificationCloseBtn"></button>
                 </div>
-                <div class="col-md-6 text-md-end">
-                    <span class="text-muted">&copy; 2026 Outpatient Clinic Management System - SE1972-NET Group 6</span>
+                <div class="modal-body text-center py-3">
+                    <p class="mb-0 text-dark" id="appNotificationMessage"></p>
+                </div>
+                <div class="modal-footer py-1 justify-content-center">
+                    <button type="button" class="btn btn-sm btn-primary px-4" data-bs-dismiss="modal" id="appNotificationOkBtn">Đóng</button>
                 </div>
             </div>
         </div>
-    </footer>
+    </div>
 
     <!-- Container cho Modal cập nhật hồ sơ bác sĩ -->
     <div id="doctorProfileModalContainer"></div>
@@ -312,6 +316,33 @@
     <script src="~/js/site.js" asp-append-version="true"></script>
 
     <script>
+        function showNotificationModal(title, message, isSuccess) {
+            var modalEl = document.getElementById('appNotificationModal');
+            if (!modalEl) return;
+
+            var headerEl = document.getElementById('appNotificationHeader');
+            var titleEl = document.getElementById('appNotificationTitle');
+            var msgEl = document.getElementById('appNotificationMessage');
+            var okBtn = document.getElementById('appNotificationOkBtn');
+            var closeBtn = document.getElementById('appNotificationCloseBtn');
+
+            titleEl.textContent = title || (isSuccess ? 'Thành công' : 'Thông báo');
+            msgEl.textContent = message || '';
+
+            if (isSuccess) {
+                headerEl.className = 'modal-header py-2 bg-success text-white';
+                closeBtn.className = 'btn-close btn-close-white';
+                okBtn.className = 'btn btn-sm btn-success px-4';
+            } else {
+                headerEl.className = 'modal-header py-2 bg-danger text-white';
+                closeBtn.className = 'btn-close btn-close-white';
+                okBtn.className = 'btn btn-sm btn-danger px-4';
+            }
+
+            var modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+            modal.show();
+        }
+
         function openDoctorProfileModal() {
             fetch('/Doctor/GetProfileModal')
                 .then(function(res) {
