@@ -80,6 +80,35 @@ namespace OCMSMVC.Models
 
         // Danh mục dịch vụ cận lâm sàng để bác sĩ chọn
         public List<MedicalServiceOptionViewModel> AvailableServices { get; set; } = new List<MedicalServiceOptionViewModel>();
+
+        // Đơn thuốc điều trị
+        public List<PrescriptionItemViewModel> Prescriptions { get; set; } = new List<PrescriptionItemViewModel>();
+
+        // Danh mục thuốc có sẵn từ DB để tìm kiếm và chọn
+        public List<MedicineOptionViewModel> AvailableMedicines { get; set; } = new List<MedicineOptionViewModel>();
+    }
+
+    public class PrescriptionItemViewModel
+    {
+        public int PrescriptionDetailId { get; set; }
+        public int MedicineId { get; set; }
+        public string MedicineName { get; set; } = string.Empty;
+        public string Unit { get; set; } = "Viên";
+        public decimal UnitPrice { get; set; }
+        public int Quantity { get; set; }
+        public decimal TotalPrice => UnitPrice * Quantity;
+        public string DosageInstruction { get; set; } = string.Empty;
+        public string Status { get; set; } = "Pending";
+    }
+
+    public class MedicineOptionViewModel
+    {
+        public int MedicineId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Unit { get; set; } = "Viên";
+        public decimal Price { get; set; }
+        public int StockQuantity { get; set; }
+        public string? Description { get; set; }
     }
 
     public class PastMedicalHistoryItemViewModel

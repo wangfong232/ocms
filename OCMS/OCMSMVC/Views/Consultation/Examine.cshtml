@@ -171,16 +171,16 @@
                         </div>
                     </div>
 
-                    <!-- Tiền sử khám: cắt ngắn vừa vặn cân bằng bố cục bên phải -->
+                    <!-- Tiền sử khám -->
                     <div>
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <small class="text-muted fw-semibold">Lịch sử các lần khám trước:</small>
-                            @if (Model.PastHistory.Count > 2)
+                            @if (Model.PastHistory.Count > 3)
                             {
                                 <small class="text-muted fst-italic">Cuộn xem thêm (@Model.PastHistory.Count lần)</small>
                             }
                         </div>
-                        <div style="max-height: 155px; overflow-y: auto;">
+                        <div style="max-height: 240px; overflow-y: auto;">
                             @if (Model.PastHistory == null || !Model.PastHistory.Any())
                             {
                                 <div class="text-center py-3 text-muted small bg-light rounded border">
@@ -205,7 +205,7 @@
                                         </div>
                                         @if (!string.IsNullOrEmpty(ph.DoctorNotes))
                                         {
-                                            <div class="small text-muted mt-1">Lời dặn: @ph.DoctorNotes</div>
+                                            <div class="small text-muted mt-1 text-truncate">Lời dặn: @ph.DoctorNotes</div>
                                         }
                                     </div>
                                 }
@@ -216,7 +216,7 @@
             </div>
         </div>
 
-        <!-- Cột Phải: Xét nghiệm nhanh & Hồ sơ bệnh án EMR -->
+        <!-- Cột Phải: Xét nghiệm nhanh, Kê đơn thuốc & Bệnh án EMR -->
         <div class="col-lg-7">
             <!-- 1. Chỉ định xét nghiệm nhanh -->
             <div class="card border mb-3">
@@ -323,7 +323,112 @@
                 </div>
             </div>
 
-            <!-- 2. Ghi nhận Hồ sơ bệnh án EMR -->
+            <!-- 2. Kê đơn thuốc điều trị (Lấy từ DB, gửi sang Cấp phát thuốc) -->
+            <div class="card border mb-3">
+                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                    <span class="fw-bold small text-primary">Kê đơn thuốc điều trị</span>
+                    <span class="badge bg-primary" id="prescriptionsBadge">@Model.Prescriptions.Count</span>
+                </div>
+                <div class="card-body p-3">
+                    @if (!isCompleted)
+                    {
+                        <div class="p-2 mb-3 bg-light rounded border">
+                            <!-- Hàng 1: Tìm kiếm & Chọn thuốc từ DB -->
+                            <div class="row g-2 mb-2">
+                                <div class="col-md-5">
+                                    <label class="form-label small text-muted mb-1">Tìm kiếm thuốc trong kho:</label>
+                                    <input type="text" id="medSearchInput" class="form-control form-control-sm" 
+                                           placeholder="Gõ tên thuốc (Panadol, Cefuroxime...)" />
+                                </div>
+                                <div class="col-md-7">
+                                    <label class="form-label small text-muted mb-1">Chọn thuốc:</label>
+                                    <select id="medSelect" class="form-select form-select-sm">
+                                        <option value="">-- Chọn thuốc từ danh mục --</option>
+                                        @foreach (var m in Model.AvailableMedicines)
+                                        {
+                                            <option value="@m.MedicineId" data-name="@m.Name" data-unit="@m.Unit" data-price="@m.Price" data-stock="@m.StockQuantity">
+                                                @m.Name (@m.Price.ToString("N0") đ / @m.Unit) - Tồn: @m.StockQuantity
+                                            </option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Hàng 2: Số lượng, Liều dùng & Nút thêm -->
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-3">
+                                    <label class="form-label small text-muted mb-1">Số lượng:</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" id="medQuantity" class="form-control" value="1" min="1" max="1000" />
+                                        <span class="input-group-text" id="medUnitBadge">ĐV</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-7">
+                                    <label class="form-label small text-muted mb-1">Liều dùng &amp; Hướng dẫn:</label>
+                                    <input type="text" id="medDosage" class="form-control form-control-sm" 
+                                           placeholder="VD: Ngày 2 lần, mỗi lần 1 viên sau ăn" />
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" id="btnAddMedBtn" class="btn btn-sm btn-primary w-100">
+                                        Thêm thuốc
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Bảng danh sách thuốc đã kê -->
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle mb-0" id="prescriptionsTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Tên thuốc</th>
+                                    <th style="width: 80px;" class="text-center">Số lượng</th>
+                                    <th style="width: 90px;" class="text-end">Đơn giá</th>
+                                    <th style="width: 105px;" class="text-end">Thành tiền</th>
+                                    <th>Hướng dẫn sử dụng</th>
+                                    @if (!isCompleted)
+                                    {
+                                        <th style="width: 50px;" class="text-center">Xóa</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody id="prescriptionsTableBody">
+                                @if (!Model.Prescriptions.Any())
+                                {
+                                    <tr id="emptyPrescriptionRow">
+                                        <td colspan="@(isCompleted ? 5 : 6)" class="text-center text-muted py-2 small">
+                                            Chưa có thuốc nào trong đơn.
+                                        </td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var p in Model.Prescriptions)
+                                    {
+                                        <tr id="prescRow-@p.PrescriptionDetailId">
+                                            <td class="small fw-semibold">@p.MedicineName</td>
+                                            <td class="small text-center">@p.Quantity @p.Unit</td>
+                                            <td class="small text-end text-muted">@p.UnitPrice.ToString("N0") đ</td>
+                                            <td class="small text-end fw-semibold text-primary">@p.TotalPrice.ToString("N0") đ</td>
+                                            <td class="small">@p.DosageInstruction</td>
+                                            @if (!isCompleted)
+                                            {
+                                                <td class="text-center">
+                                                    <button type="button" class="btn btn-sm btn-link text-danger p-0 text-decoration-none" 
+                                                            onclick="removePrescriptionItem(@p.PrescriptionDetailId)">Xóa</button>
+                                                </td>
+                                            }
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Ghi nhận Hồ sơ bệnh án EMR & Kết luận -->
             <div class="card border">
                 <div class="card-header bg-light py-2">
                     <span class="fw-bold small text-success">Hồ sơ bệnh án &amp; Kết luận điều trị</span>
@@ -331,7 +436,7 @@
                 <div class="card-body p-3">
                     <form asp-action="SaveEMR" method="post" id="emrForm">
                         @Html.AntiForgeryToken()
-                        <input type="hidden" name="appointmentId" value="@Model.AppointmentId" />
+                        <input type="hidden" name="appointmentId" id="emrAppointmentId" value="@Model.AppointmentId" />
                         <input type="hidden" name="completeConsultation" id="completeConsultationFlag" value="false" />
 
                         <!-- Chẩn đoán chính -->
@@ -378,7 +483,7 @@
                         else
                         {
                             <div class="p-2 mb-0 rounded bg-light border text-center small text-success fw-semibold">
-                                Ca khám đã hoàn thành. Hồ sơ bệnh án đã được lưu trữ vào hệ thống.
+                                Ca khám đã hoàn thành. Hồ sơ bệnh án và đơn thuốc đã được gửi sang quầy Cấp phát thuốc.
                             </div>
                         }
                     </form>
@@ -397,7 +502,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body text-center py-3">
-                <p class="mb-0 text-dark small">Xác nhận hoàn tất ca khám cho bệnh nhân <strong>@Model.PatientName</strong>? Ca khám sẽ được lưu và chuyển trạng thái Đã khám.</p>
+                <p class="mb-0 text-dark small">Xác nhận hoàn tất ca khám cho bệnh nhân <strong>@Model.PatientName</strong>? Đơn thuốc sẽ được chuyển sang bộ phận Cấp phát thuốc của Lễ tân.</p>
             </div>
             <div class="modal-footer py-2 justify-content-center">
                 <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Hủy</button>
@@ -454,6 +559,180 @@
                 var modal = new bootstrap.Modal(modalEl);
                 modal.show();
             }
+        }
+
+        // Kê đơn thuốc: Tìm kiếm thuốc live từ DB
+        var medSearchInput = document.getElementById('medSearchInput');
+        var medSelect = document.getElementById('medSelect');
+        var medUnitBadge = document.getElementById('medUnitBadge');
+
+        function updateUnitDisplay() {
+            if (!medSelect || !medUnitBadge) return;
+            var opt = medSelect.options[medSelect.selectedIndex];
+            var unit = opt ? opt.getAttribute('data-unit') : '';
+            medUnitBadge.textContent = unit || 'ĐV';
+        }
+
+        if (medSelect) {
+            medSelect.addEventListener('change', updateUnitDisplay);
+        }
+
+        if (medSearchInput) {
+            var searchTimeout = null;
+            medSearchInput.addEventListener('input', function () {
+                var term = this.value.trim();
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(function () {
+                    fetch('/Consultation/SearchMedicines?term=' + encodeURIComponent(term))
+                        .then(function (res) { return res.json(); })
+                        .then(function (data) {
+                            medSelect.innerHTML = '<option value="">-- Chọn thuốc từ danh mục --</option>';
+                            data.forEach(function (m) {
+                                var opt = document.createElement('option');
+                                opt.value = m.id;
+                                opt.textContent = m.name + ' (' + m.priceDisplay + ' / ' + m.unit + ') - Tồn: ' + m.stock;
+                                opt.setAttribute('data-name', m.name);
+                                opt.setAttribute('data-unit', m.unit);
+                                opt.setAttribute('data-price', m.price);
+                                opt.setAttribute('data-stock', m.stock);
+                                medSelect.appendChild(opt);
+                            });
+                            if (data.length === 1) {
+                                medSelect.selectedIndex = 1;
+                            }
+                            updateUnitDisplay();
+                        })
+                        .catch(function (err) {
+                            console.error("Lỗi tìm kiếm thuốc:", err);
+                        });
+                }, 300);
+            });
+        }
+
+        // Thêm thuốc vào đơn (AJAX để không mất nội dung chẩn đoán chưa lưu)
+        var btnAddMedBtn = document.getElementById('btnAddMedBtn');
+        if (btnAddMedBtn) {
+            btnAddMedBtn.addEventListener('click', function () {
+                var medicineId = medSelect ? medSelect.value : '';
+                if (!medicineId) {
+                    if (typeof showNotificationModal === 'function') {
+                        showNotificationModal("Thông báo", "Vui lòng chọn thuốc từ danh sách.", false);
+                    }
+                    return;
+                }
+
+                var quantity = parseInt(document.getElementById('medQuantity').value, 10) || 1;
+                var dosage = document.getElementById('medDosage').value.trim();
+                var appointmentId = document.getElementById('emrAppointmentId').value;
+                var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
+                var token = tokenEl ? tokenEl.value : '';
+
+                var body = '__RequestVerificationToken=' + encodeURIComponent(token) +
+                           '&appointmentId=' + encodeURIComponent(appointmentId) +
+                           '&medicineId=' + encodeURIComponent(medicineId) +
+                           '&quantity=' + encodeURIComponent(quantity) +
+                           '&dosageInstruction=' + encodeURIComponent(dosage);
+
+                fetch('/Consultation/AddPrescriptionItem', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: body
+                })
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    if (!data.success) {
+                        if (typeof showNotificationModal === 'function') {
+                            showNotificationModal("Thông báo", data.message, false);
+                        }
+                        return;
+                    }
+
+                    // Xóa dòng trống nếu có
+                    var emptyRow = document.getElementById('emptyPrescriptionRow');
+                    if (emptyRow) emptyRow.remove();
+
+                    // Thêm dòng mới vào bảng
+                    var tbody = document.getElementById('prescriptionsTableBody');
+                    var tr = document.createElement('tr');
+                    tr.id = 'prescRow-' + data.item.prescriptionDetailId;
+                    tr.innerHTML = '<td class="small fw-semibold">' + data.item.medicineName + '</td>' +
+                                   '<td class="small text-center">' + data.item.quantity + ' ' + data.item.unit + '</td>' +
+                                   '<td class="small text-end text-muted">' + data.item.unitPriceDisplay + '</td>' +
+                                   '<td class="small text-end fw-semibold text-primary">' + data.item.totalPriceDisplay + '</td>' +
+                                   '<td class="small">' + (data.item.dosageInstruction || '') + '</td>' +
+                                   '<td class="text-center">' +
+                                   '<button type="button" class="btn btn-sm btn-link text-danger p-0 text-decoration-none" onclick="removePrescriptionItem(' + data.item.prescriptionDetailId + ')">Xóa</button>' +
+                                   '</td>';
+                    tbody.appendChild(tr);
+
+                    // Cập nhật badge
+                    var badge = document.getElementById('prescriptionsBadge');
+                    if (badge) {
+                        var count = tbody.querySelectorAll('tr[id^="prescRow-"]').length;
+                        badge.textContent = count;
+                    }
+
+                    // Reset form thêm thuốc
+                    document.getElementById('medDosage').value = '';
+                    document.getElementById('medQuantity').value = '1';
+                })
+                .catch(function (err) {
+                    if (typeof showNotificationModal === 'function') {
+                        showNotificationModal("Thông báo", "Lỗi kết nối khi thêm thuốc.", false);
+                    }
+                });
+            });
+        }
+
+        // Xóa thuốc khỏi đơn (AJAX)
+        function removePrescriptionItem(prescriptionDetailId) {
+            var appointmentId = document.getElementById('emrAppointmentId').value;
+            var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
+            var token = tokenEl ? tokenEl.value : '';
+
+            var body = '__RequestVerificationToken=' + encodeURIComponent(token) +
+                       '&appointmentId=' + encodeURIComponent(appointmentId) +
+                       '&prescriptionDetailId=' + encodeURIComponent(prescriptionDetailId);
+
+            fetch('/Consultation/DeletePrescriptionItem', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: body
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    var row = document.getElementById('prescRow-' + prescriptionDetailId);
+                    if (row) row.remove();
+
+                    var tbody = document.getElementById('prescriptionsTableBody');
+                    var rows = tbody.querySelectorAll('tr[id^="prescRow-"]');
+                    var badge = document.getElementById('prescriptionsBadge');
+                    if (badge) badge.textContent = rows.length;
+
+                    if (rows.length === 0) {
+                        var emptyTr = document.createElement('tr');
+                        emptyTr.id = 'emptyPrescriptionRow';
+                        emptyTr.innerHTML = '<td colspan="6" class="text-center text-muted py-2 small">Chưa có thuốc nào trong đơn.</td>';
+                        tbody.appendChild(emptyTr);
+                    }
+                } else {
+                    if (typeof showNotificationModal === 'function') {
+                        showNotificationModal("Thông báo", data.message, false);
+                    }
+                }
+            })
+            .catch(function () {
+                if (typeof showNotificationModal === 'function') {
+                    showNotificationModal("Thông báo", "Không thể xóa thuốc.", false);
+                }
+            });
         }
 
         document.addEventListener("DOMContentLoaded", function () {
