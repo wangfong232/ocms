@@ -17,33 +17,49 @@ public class AdminController : Controller
         _analyticsService = analyticsService;
     }
 
-    [HttpGet]
-    public async Task<IActionResult> Dashboard()
+    public async Task<IActionResult> Dashboard(string startDate, string endDate)
     {
         if (!RequireAdmin()) return Denied();
+        DateTime start = string.IsNullOrEmpty(startDate) ? DateTime.Now.AddDays(-7).Date : DateTime.Parse(startDate).Date;
+        DateTime end = string.IsNullOrEmpty(endDate) ? DateTime.Now : DateTime.Parse(endDate).Date.AddDays(1).AddTicks(-1);
+
+        var hourlyToday = await _analyticsService.GetTodayHourlyRevenueAsync();
 
         var viewModel = new AdminDashboardViewModel
         {
-            TotalRevenue = await _analyticsService.GetTotalRevenueAsync(),
-            TotalPatients = await _analyticsService.GetTotalPatientsAsync(),
-            TotalAppointments = await _analyticsService.GetTotalAppointmentsAsync(),
-            CancellationRate = await _analyticsService.GetCancellationRateAsync(),
-            RevenueByMonth = await _analyticsService.GetRevenueByMonthAsync(),
-            AppointmentsByDepartment = await _analyticsService.GetAppointmentsByDepartmentAsync()
+            StartDate = start.ToString("dd/MM/yyyy"),
+            EndDate = end.ToString("dd/MM/yyyy"),
+
+            TotalRevenue = await _analyticsService.GetTotalRevenueAsync(start, end),
+            TotalPatients = await _analyticsService.GetTotalPatientsAsync(start, end),
+            TotalAppointments = await _analyticsService.GetTotalAppointmentsAsync(start, end),
+            CancellationRate = await _analyticsService.GetCancellationRateAsync(start, end),
+            RevenueByMonth = await _analyticsService.GetRevenueTrendAsync(start, end),
+            RevenueByDepartment = await _analyticsService.GetRevenueByDepartmentAsync(start, end),
+            RevenueByDoctor = await _analyticsService.GetRevenueByDoctorAsync(start, end),
+            TodayHourLabels = hourlyToday.Keys.Select(k => $"{k}h").ToList(),
+            TodayHourlyRevenue = hourlyToday.Values.ToList(),
+            Users = (await _admin.GetUsersAsync()).Where(user => user.Role is "Doctor" or "Staff" or "Admin").ToList(),
+            Departments = new List<Department>(await _admin.GetDepartmentsAsync()),
+            Rooms = new List<Room>(await _admin.GetRoomsAsync())
         };
 
         return View(viewModel);
     }
 
-    [HttpGet]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
         if (!RequireAdmin()) return Denied();
         var users = (await _admin.GetUsersAsync(ct)).Where(user => user.Role is "Doctor" or "Staff" or "Admin").ToList();
-        return View(new AdminDashboardViewModel { Users = users, Departments = await _admin.GetDepartmentsAsync(ct), Rooms = await _admin.GetRoomsAsync(ct) });
+
+        return View(new AdminDashboardViewModel
+        {
+            Users = users,
+            Departments = new List<Department>(await _admin.GetDepartmentsAsync(ct)),
+            Rooms = new List<Room>(await _admin.GetRoomsAsync(ct)) 
+        });
     }
 
-    [HttpGet]
     public async Task<IActionResult> Users(CancellationToken ct)
     {
         if (!RequireAdmin()) return Denied();
@@ -81,7 +97,6 @@ public class AdminController : Controller
         return RedirectToAction(nameof(Users));
     }
 
-    [HttpGet]
     public async Task<IActionResult> Departments(int? id, CancellationToken ct)
     {
         if (!RequireAdmin()) return Denied();
@@ -111,7 +126,7 @@ public class AdminController : Controller
         return RedirectToAction(nameof(Departments));
     }
 
-    [HttpGet]
+
     public async Task<IActionResult> Rooms(int? id, CancellationToken ct)
     {
         if (!RequireAdmin()) return Denied();
