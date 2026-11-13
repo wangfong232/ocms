@@ -24,8 +24,10 @@ namespace OCMSMVC.Models
         [RegularExpression(@"^0[0-9]{9}$", ErrorMessage = "Số điện thoại phải gồm 10 chữ số (bắt đầu bằng 0)")]
         [Display(Name = "Số điện thoại")]
         public string PhoneNumber { get; set; } = string.Empty;
+
         [Required(ErrorMessage = "Vui lòng nhập mật khẩu")]
         [MinLength(6, ErrorMessage = "Mật khẩu tối thiểu 6 ký tự")]
+        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$", ErrorMessage = "Mật khẩu phải từ 6 ký tự trở lên, bao gồm ít nhất 1 chữ hoa, 1 chữ thường và 1 chữ số")]
         [DataType(DataType.Password)]
         [Display(Name = "Mật khẩu")]
         public string Password { get; set; } = string.Empty;
@@ -35,7 +37,17 @@ namespace OCMSMVC.Models
         [Display(Name = "Xác nhận mật khẩu")]
         public string ConfirmPassword { get; set; } = string.Empty;
     }
-
+    public class VerifyRegisterOtpViewModel
+    {
+        [Required(ErrorMessage = "Vui lòng nhập địa chỉ email")]
+        [EmailAddress(ErrorMessage = "Định dạng email không hợp lệ")]
+        [Display(Name = "Địa chỉ Email")]
+        public string Email { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Vui lòng nhập mã xác thực OTP 6 số")]
+        [RegularExpression(@"^[0-9]{6}$", ErrorMessage = "Mã xác thực OTP gồm đúng 6 chữ số")]
+        [Display(Name = "Mã xác thực (OTP)")]
+        public string OtpCode { get; set; } = string.Empty;
+    }
     public class ForgotPasswordViewModel
     {
         [Required(ErrorMessage = "Vui lòng nhập địa chỉ email")]
@@ -50,14 +62,13 @@ namespace OCMSMVC.Models
         [EmailAddress(ErrorMessage = "Định dạng email không hợp lệ")]
         [Display(Name = "Địa chỉ Email")]
         public string Email { get; set; } = string.Empty;
-
         [Required(ErrorMessage = "Vui lòng nhập mã xác thực OTP 6 số")]
         [RegularExpression(@"^[0-9]{6}$", ErrorMessage = "Mã xác thực phải là 6 chữ số")]
         [Display(Name = "Mã xác thực (OTP)")]
         public string OtpCode { get; set; } = string.Empty;
-
         [Required(ErrorMessage = "Vui lòng nhập mật khẩu mới")]
         [MinLength(6, ErrorMessage = "Mật khẩu tối thiểu 6 ký tự")]
+        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$", ErrorMessage = "Mật khẩu phải từ 6 ký tự trở lên, bao gồm ít nhất 1 chữ hoa, 1 chữ thường và 1 chữ số")]
         [DataType(DataType.Password)]
         [Display(Name = "Mật khẩu mới")]
         public string NewPassword { get; set; } = string.Empty;
@@ -101,6 +112,7 @@ namespace OCMSMVC.Models
         public string CurrentPassword { get; set; } = string.Empty;
         [Required(ErrorMessage = "Vui lòng nhập mật khẩu mới")]
         [MinLength(6, ErrorMessage = "Mật khẩu mới tối thiểu 6 ký tự")]
+        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$", ErrorMessage = "Mật khẩu mới phải từ 6 ký tự trở lên, bao gồm ít nhất 1 chữ hoa, 1 chữ thường và 1 chữ số")]
         [DataType(DataType.Password)]
         [Display(Name = "Mật khẩu mới")]
         public string NewPassword { get; set; } = string.Empty;
@@ -109,6 +121,9 @@ namespace OCMSMVC.Models
         [DataType(DataType.Password)]
         [Display(Name = "Xác nhận mật khẩu mới")]
         public string ConfirmNewPassword { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Vui lòng nhập mã xác thực OTP gửi về email")]
+        [RegularExpression(@"^[0-9]{6}$", ErrorMessage = "Mã xác thực OTP gồm đúng 6 chữ số")]
+        [Display(Name = "Mã xác thực OTP")]
+        public string OtpCode { get; set; } = string.Empty;
     }
-
 }
