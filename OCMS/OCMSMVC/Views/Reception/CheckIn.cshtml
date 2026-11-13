@@ -108,7 +108,9 @@
                         <div class="col-sm-6">
                             <small class="text-muted d-block">Giờ hẹn khám:</small>
                             <span class="badge bg-secondary fs-6 px-3 py-1">
-                                @Model.AppointmentDate.ToString("dd/MM/yyyy HH:mm")
+                                @(Model.TimeSlot != null 
+                                    ? $"{Model.AppointmentDate:dd/MM/yyyy} {Model.TimeSlot.StartTime:hh\\:mm}" 
+                                    : Model.AppointmentDate.ToString("dd/MM/yyyy HH:mm"))
                             </span>
                         </div>
                         <div class="col-sm-6">
@@ -284,7 +286,7 @@
                                         P.@(item.TimeSlot?.DoctorSchedule?.Room?.RoomNumber ?? "101")
                                     </small>
                                 </td>
-                                <td>@item.AppointmentDate.ToString("HH:mm")</td>
+                                <td>@(item.TimeSlot != null ? item.TimeSlot.StartTime.ToString(@"hh\:mm") : item.AppointmentDate.ToString("HH:mm"))</td>
                                 <td>
                                     <span class="badge @(item.Status == "Confirmed" ? "bg-primary" : (item.Status == "Arrived" ? "bg-warning text-dark" : "bg-success"))">
                                         @item.Status

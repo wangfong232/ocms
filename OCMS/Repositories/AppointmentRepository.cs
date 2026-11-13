@@ -58,7 +58,7 @@ namespace Repositories
             // 2. Parse ID prefixes: OCMS-APT-X, APP-X, HAMS-APT-X
             int aptId = 0;
             if (query.StartsWith("OCMS-APT-", StringComparison.OrdinalIgnoreCase))
-            {
+            { 
                 int.TryParse(query.Replace("OCMS-APT-", "", StringComparison.OrdinalIgnoreCase), out aptId);
             }
             else if (query.StartsWith("APP-", StringComparison.OrdinalIgnoreCase))

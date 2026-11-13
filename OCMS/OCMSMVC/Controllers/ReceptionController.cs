@@ -136,7 +136,7 @@ namespace OCMSMVC.Controllers
 
             if (result.Success)
             {
-                // PRN222 - Chapter 7: Bệnh nhân vừa check-in, cập nhật ngay hàng đợi trên TV Sảnh qua SignalR
+                
                 await _hubContext.Clients.All.SendAsync("QueueUpdated");
             }
 
@@ -167,7 +167,7 @@ namespace OCMSMVC.Controllers
                 phoneNumber = a.Patient?.User?.PhoneNumber ?? "N/A",
                 doctorName = a.Doctor?.User?.FullName ?? "N/A",
                 roomNumber = a.TimeSlot?.DoctorSchedule?.Room?.RoomNumber ?? "101",
-                appointmentTime = a.AppointmentDate.ToString("HH:mm"),
+                appointmentTime = a.TimeSlot != null ? a.TimeSlot.StartTime.ToString(@"hh\:mm") : a.AppointmentDate.ToString("HH:mm"),
                 status = a.Status,
                 queueNumber = a.QueueNumber
             });
@@ -244,7 +244,7 @@ namespace OCMSMVC.Controllers
 
             if (result.Success)
             {
-                // PRN222 - Chapter 7: Bệnh nhân vừa check-in, cập nhật ngay hàng đợi trên TV Sảnh qua SignalR
+                
                 await _hubContext.Clients.All.SendAsync("QueueUpdated");
             }
 

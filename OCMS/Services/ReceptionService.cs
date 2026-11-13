@@ -323,7 +323,7 @@ namespace Services
                         QueueNumber = currentApt.QueueNumber,
                         PatientName = currentApt.Patient?.User?.FullName ?? "N/A",
                         MaskedPhone = MaskPhoneNumber(currentApt.Patient?.User?.PhoneNumber),
-                        AppointmentTime = currentApt.AppointmentDate.ToString("HH:mm"),
+                        AppointmentTime = currentApt.TimeSlot != null ? currentApt.TimeSlot.StartTime.ToString(@"hh\:mm") : currentApt.AppointmentDate.ToString("HH:mm"),
                         Status = currentApt.Status
                     } : null,
                     WaitingQueue = waitingApts.Select(w => new QueuePatientDto
@@ -332,7 +332,7 @@ namespace Services
                         QueueNumber = w.QueueNumber,
                         PatientName = w.Patient?.User?.FullName ?? "N/A",
                         MaskedPhone = MaskPhoneNumber(w.Patient?.User?.PhoneNumber),
-                        AppointmentTime = w.AppointmentDate.ToString("HH:mm"),
+                        AppointmentTime = w.TimeSlot != null ? w.TimeSlot.StartTime.ToString(@"hh\:mm") : w.AppointmentDate.ToString("HH:mm"),
                         Status = w.Status
                     }).ToList()
                 };
