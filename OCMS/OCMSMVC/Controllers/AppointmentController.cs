@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using OCMSMVC.Filters;
 using OCMSMVC.Models;
 using Services;
 
 namespace OCMSMVC.Controllers
 {
+    [RoleAuthorize("Patient", "Admin")]
     public class AppointmentController : Controller
     {
         private readonly IAppointmentService appointmentService;

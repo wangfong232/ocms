@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using OCMSMVC.Filters;
 using OCMSMVC.Hubs;
 using OCMSMVC.Models;
 using Repositories;
@@ -249,6 +250,7 @@ namespace OCMSMVC.Controllers
         }
 
         [HttpGet]
+        [RoleAuthorize("Patient", "Admin")]
         public async Task<IActionResult> Confirm()
         {
             int? userId = HttpContext.Session.GetInt32("UserId");
@@ -297,6 +299,7 @@ namespace OCMSMVC.Controllers
         }
 
         [HttpPost]
+        [RoleAuthorize("Patient", "Admin")]
         public async Task<IActionResult> ConfirmBooking(ConfirmBookingPostModel model)
         {
             int? userId = HttpContext.Session.GetInt32("UserId");

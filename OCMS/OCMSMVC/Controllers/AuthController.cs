@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using OCMSMVC.Filters;
 using OCMSMVC.Models;
 using Services;
 using System;
@@ -309,6 +310,7 @@ namespace OCMSMVC.Controllers
         }
 
         [HttpGet]
+        [RoleAuthorize]
         public async Task<IActionResult> Profile()
         {
             int? userId = HttpContext.Session.GetInt32("UserId");
@@ -332,6 +334,7 @@ namespace OCMSMVC.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [RoleAuthorize]
         public async Task<IActionResult> Profile(ProfileViewModel model)
         {
             int? userId = HttpContext.Session.GetInt32("UserId");
@@ -352,6 +355,7 @@ namespace OCMSMVC.Controllers
         }
 
         [HttpGet]
+        [RoleAuthorize]
         public async Task<IActionResult> ChangePassword()
         {
             int? userId = HttpContext.Session.GetInt32("UserId");
@@ -364,6 +368,7 @@ namespace OCMSMVC.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [RoleAuthorize]
         public async Task<IActionResult> SendChangePasswordOtp()
         {
             int? userId = HttpContext.Session.GetInt32("UserId");
@@ -384,6 +389,7 @@ namespace OCMSMVC.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [RoleAuthorize]
         public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
         {
             int? userId = HttpContext.Session.GetInt32("UserId");

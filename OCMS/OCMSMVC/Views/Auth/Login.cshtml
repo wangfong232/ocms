@@ -19,6 +19,14 @@
                     </div>
                 }
 
+                @if (TempData["ErrorMessage"] != null)
+                {
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ErrorMessage"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                }
+
                 @if (!ViewData.ModelState.IsValid && ViewData.ModelState[string.Empty]?.Errors.Count > 0)
                 {
                     <div class="alert alert-danger" role="alert">
@@ -27,7 +35,7 @@
                     </div>
                 }
 
-                <form asp-action="Login" method="post">
+                <form asp-action="Login" asp-route-returnUrl="@ViewBag.ReturnUrl" method="post">
                     <div class="mb-3">
                         <label asp-for="Email" class="form-label fw-semibold">Địa chỉ Email</label>
                         <div class="input-group">
