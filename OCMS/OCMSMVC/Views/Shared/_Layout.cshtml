@@ -40,14 +40,14 @@
                 @if (isAdmin)
                 {
                     <a class="navbar-brand fw-bold d-flex align-items-center" asp-controller="Admin" asp-action="Index">
-                        <i class="bi bi-hospital me-2 fs-4 text-warning"></i>
+                        <i class="bi bi-hospital me-2 fs-4 text-white"></i>
                         <span>OCMS Clinic</span>
                     </a>
                 }
                 else
                 {
                     <a class="navbar-brand fw-bold d-flex align-items-center" asp-controller="Home" asp-action="Index">
-                        <i class="bi bi-hospital me-2 fs-4 text-warning"></i>
+                        <i class="bi bi-hospital me-2 fs-4 text-white"></i>
                         <span>OCMS Clinic</span>
                     </a>
                 }
@@ -103,7 +103,7 @@
 
                         <!-- 5. Màn hình TV Sảnh Chờ (Màn hình công cộng tại sảnh phòng khám) -->
                         <li class="nav-item">
-                            <a class="nav-link text-warning fw-semibold" asp-controller="Queue" asp-action="Display" target="_blank" title="Theo dõi số thứ tự sảnh chờ">
+                            <a class="nav-link text-white fw-semibold" asp-controller="Queue" asp-action="Display" target="_blank" title="Theo dõi số thứ tự sảnh chờ">
                                 <i class="bi bi-tv me-1"></i>TV Sảnh Chờ
                             </a>
                         </li>
@@ -112,7 +112,7 @@
                         @if (isDoctor)
                         {
                             <li class="nav-item">
-                                <a class="nav-link text-warning fw-bold" asp-controller="Consultation" asp-action="Queue">
+                                <a class="nav-link text-white fw-bold" asp-controller="Consultation" asp-action="Queue">
                                     <i class="bi bi-clipboard2-pulse me-1"></i>Bàn khám bệnh EMR
                                 </a>
                             </li>
@@ -164,7 +164,7 @@
                         @if (isAdmin)
                         {
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle text-warning fw-bold" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <a class="nav-link dropdown-toggle text-white fw-bold" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     <i class="bi bi-shield-lock me-1"></i>Quản trị hệ thống
                                 </a>
                                 <ul class="dropdown-menu shadow border-0">
@@ -296,7 +296,7 @@
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="btn btn-warning btn-sm text-dark fw-bold px-3 shadow-sm" asp-controller="Auth" asp-action="Login">
+                                <a class="btn btn-light btn-sm text-primary fw-bold px-3 shadow-sm" asp-controller="Auth" asp-action="Login">
                                     <i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập
                                 </a>
                             </li>
