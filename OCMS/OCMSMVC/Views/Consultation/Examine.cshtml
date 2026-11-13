@@ -1,23 +1,21 @@
 @model OCMSMVC.Models.ConsultationExamineViewModel
 @{
-    ViewData["Title"] = $"Khám bệnh - {Model.PatientName}";
+    ViewData["Title"] = $"Hồ sơ bệnh án - {Model.PatientName}";
     bool isCompleted = Model.Status == "Completed";
 }
 
 <div class="container-fluid py-3 px-lg-4">
-    <!-- Top Bar: Thông tin ca khám & Bệnh nhân -->
-    <div class="card shadow-sm border-0 mb-3 bg-white">
+    <!-- Header: Thông tin ca khám & Bệnh nhân -->
+    <div class="card border mb-3 bg-white">
         <div class="card-body p-3">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
                 <div class="d-flex align-items-center gap-3">
-                    <a asp-action="Queue" class="btn btn-outline-secondary btn-sm" title="Quay lại hàng đợi">
-                        <i class="bi bi-arrow-left me-1"></i>Hàng đợi
-                    </a>
+                    <a asp-action="Queue" class="btn btn-outline-secondary btn-sm">&larr; Hàng đợi</a>
                     <div class="vr d-none d-sm-block"></div>
                     <div>
                         <div class="d-flex align-items-center gap-2">
-                            <h4 class="fw-bold text-primary mb-0">@Model.PatientName</h4>
-                            <span class="badge @(Model.Gender == "Nam" ? "bg-primary-subtle text-primary" : "bg-danger-subtle text-danger") border">
+                            <h5 class="fw-bold text-primary mb-0">@Model.PatientName</h5>
+                            <span class="badge @(Model.Gender == "Nam" ? "bg-primary" : "bg-danger")">
                                 @Model.Gender
                             </span>
                             <span class="badge bg-light text-dark border">
@@ -25,130 +23,126 @@
                             </span>
                         </div>
                         <div class="small text-muted mt-1">
-                            <span><i class="bi bi-telephone me-1"></i>@Model.PhoneNumber</span>
+                            <span class="me-3">SĐT: @Model.PhoneNumber</span>
                             @if (!string.IsNullOrEmpty(Model.HealthInsuranceNumber))
                             {
-                                <span class="ms-3"><i class="bi bi-card-heading me-1"></i>BHYT: <strong>@Model.HealthInsuranceNumber</strong></span>
+                                <span class="me-3">BHYT: @Model.HealthInsuranceNumber</span>
                             }
                             @if (!string.IsNullOrEmpty(Model.Address))
                             {
-                                <span class="ms-3 d-none d-md-inline"><i class="bi bi-geo-alt me-1"></i>@Model.Address</span>
+                                <span>Địa chỉ: @Model.Address</span>
                             }
                         </div>
                     </div>
                 </div>
 
-                <div class="d-flex align-items-center gap-3 text-end">
-                    <div>
-                        <div class="small text-muted">Khung giờ: <strong>@Model.TimeSlotDisplay</strong></div>
-                        <div>
-                            @if (isCompleted)
-                            {
-                                <span class="badge bg-success fs-6"><i class="bi bi-check-circle me-1"></i>Đã hoàn thành</span>
-                            }
-                            else
-                            {
-                                <span class="badge bg-warning text-dark fs-6"><i class="bi bi-person-pulse me-1"></i>Đang trong bàn khám</span>
-                            }
-                        </div>
+                <div class="text-end">
+                    <div class="small text-muted">Khung giờ: <strong>@Model.TimeSlotDisplay</strong></div>
+                    <div class="mt-1">
+                        @if (isCompleted)
+                        {
+                            <span class="badge bg-success">Đã hoàn thành</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-warning text-dark">Đang khám</span>
+                        }
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Alert Messages -->
+    <!-- Alert Messages (Hiển thị dạng success message màu xanh) -->
     @if (TempData["SuccessMessage"] != null)
     {
-        <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
-            <i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]
+        <div class="alert alert-success alert-dismissible fade show py-2 mb-3" role="alert">
+            @TempData["SuccessMessage"]
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     }
     @if (TempData["ErrorMessage"] != null)
     {
-        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ErrorMessage"]
+        <div class="alert alert-danger alert-dismissible fade show py-2 mb-3" role="alert">
+            @TempData["ErrorMessage"]
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     }
 
-    <!-- 2 Cột Bàn khám bệnh -->
+    <!-- 2 Cột Bàn khám -->
     <div class="row g-3">
-        <!-- Cột Trái: Tiền sử, Lý do khám & Chỉ số sinh tồn (Vital Signs) -->
+        <!-- Cột Trái: Sinh hiệu & Tiền sử -->
         <div class="col-lg-5">
-            <!-- 1. Chỉ số sinh tồn (Vital Signs) -->
-            <div class="card shadow-sm border-0 mb-3">
-                <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
-                    <h6 class="fw-bold text-danger mb-0">
-                        <i class="bi bi-heart-pulse me-1"></i>Chỉ số sinh tồn (Vital Signs)
-                    </h6>
+            <!-- 1. Chỉ số sinh tồn -->
+            <div class="card border mb-3">
+                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                    <span class="fw-bold small text-danger">Chỉ số sinh tồn</span>
                     @if (Model.HasVitalSigns)
                     {
-                        <span class="badge bg-success-subtle text-success border border-success-subtle small">Đã tiếp đón đo</span>
+                        <span class="badge bg-success">Đã đo</span>
                     }
                     else
                     {
-                        <span class="badge bg-secondary-subtle text-secondary small">Chưa có dữ liệu</span>
+                        <span class="badge bg-secondary">Chưa đo</span>
                     }
                 </div>
                 <div class="card-body p-3">
                     @if (Model.HasVitalSigns)
                     {
-                        <div class="row g-2 text-center">
-                            <div class="col-6 col-md-3">
+                        <div class="row g-2 text-center mb-2">
+                            <div class="col-6 col-sm-3">
                                 <div class="p-2 border rounded bg-light">
-                                    <small class="text-muted d-block" style="font-size:0.75rem;">Huyết áp (BP)</small>
-                                    <strong class="fs-6 @(Model.SystolicBP >= 140 ? "text-danger" : "text-dark")">
+                                    <small class="text-muted d-block" style="font-size:0.75rem;">Huyết áp</small>
+                                    <strong class="@(Model.SystolicBP >= 140 ? "text-danger" : "text-dark")">
                                         @Model.SystolicBP/@Model.DiastolicBP
                                     </strong>
                                     <small class="text-muted d-block" style="font-size:0.65rem;">mmHg</small>
                                 </div>
                             </div>
-                            <div class="col-6 col-md-3">
+                            <div class="col-6 col-sm-3">
                                 <div class="p-2 border rounded bg-light">
-                                    <small class="text-muted d-block" style="font-size:0.75rem;">Mạch (Pulse)</small>
-                                    <strong class="fs-6 text-dark">@Model.Pulse</strong>
+                                    <small class="text-muted d-block" style="font-size:0.75rem;">Mạch</small>
+                                    <strong class="text-dark">@Model.Pulse</strong>
                                     <small class="text-muted d-block" style="font-size:0.65rem;">lần/phút</small>
                                 </div>
                             </div>
-                            <div class="col-6 col-md-3">
+                            <div class="col-6 col-sm-3">
                                 <div class="p-2 border rounded bg-light">
-                                    <small class="text-muted d-block" style="font-size:0.75rem;">Nhiệt độ (T°)</small>
-                                    <strong class="fs-6 @(Model.Temperature >= 38 ? "text-danger" : "text-dark")">
+                                    <small class="text-muted d-block" style="font-size:0.75rem;">Thân nhiệt</small>
+                                    <strong class="@(Model.Temperature >= 38 ? "text-danger" : "text-dark")">
                                         @Model.Temperature.ToString("0.0")
                                     </strong>
                                     <small class="text-muted d-block" style="font-size:0.65rem;">°C</small>
                                 </div>
                             </div>
-                            <div class="col-6 col-md-3">
+                            <div class="col-6 col-sm-3">
                                 <div class="p-2 border rounded bg-light">
                                     <small class="text-muted d-block" style="font-size:0.75rem;">SpO2</small>
-                                    <strong class="fs-6 @(Model.SpO2 < 95 ? "text-danger" : "text-dark")">
+                                    <strong class="@(Model.SpO2 < 95 ? "text-danger" : "text-dark")">
                                         @Model.SpO2%
                                     </strong>
-                                    <small class="text-muted d-block" style="font-size:0.65rem;">Oxy máu</small>
+                                    <small class="text-muted d-block" style="font-size:0.65rem;">Oxy</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-2 text-center">
+                            <div class="col-4">
+                                <div class="p-2 border rounded bg-light">
+                                    <small class="text-muted d-block" style="font-size:0.75rem;">Chiều cao</small>
+                                    <strong class="text-dark">@Model.Height cm</strong>
                                 </div>
                             </div>
                             <div class="col-4">
                                 <div class="p-2 border rounded bg-light">
                                     <small class="text-muted d-block" style="font-size:0.75rem;">Cân nặng</small>
-                                    <strong class="fs-6 text-dark">@Model.Weight</strong>
-                                    <small class="text-muted d-block" style="font-size:0.65rem;">kg</small>
-                                </div>
-                            </div>
-                            <div class="col-4">
-                                <div class="p-2 border rounded bg-light">
-                                    <small class="text-muted d-block" style="font-size:0.75rem;">Chiều cao</small>
-                                    <strong class="fs-6 text-dark">@Model.Height</strong>
-                                    <small class="text-muted d-block" style="font-size:0.65rem;">cm</small>
+                                    <strong class="text-dark">@Model.Weight kg</strong>
                                 </div>
                             </div>
                             <div class="col-4">
                                 <div class="p-2 border rounded bg-light">
                                     <small class="text-muted d-block" style="font-size:0.75rem;">BMI</small>
-                                    <strong class="fs-6 text-primary">@Model.BMI</strong>
-                                    <small class="text-muted d-block" style="font-size:0.65rem;">kg/m²</small>
+                                    <strong class="text-primary">@Model.BMI</strong>
                                 </div>
                             </div>
                         </div>
@@ -156,95 +150,89 @@
                     else
                     {
                         <div class="text-muted small text-center py-2">
-                            <i class="bi bi-info-circle me-1"></i>Bệnh nhân chưa được điều dưỡng đo sinh hiệu ở bàn tiếp đón.
+                            Chưa có dữ liệu sinh hiệu đo từ khâu tiếp đón.
                         </div>
                     }
                 </div>
             </div>
 
-            <!-- 2. Lý do đến khám (Chief Complaint) -->
-            <div class="card shadow-sm border-0 mb-3">
-                <div class="card-header bg-white py-2">
-                    <h6 class="fw-bold text-secondary mb-0">
-                        <i class="bi bi-chat-left-dots me-1"></i>Lý do đến khám (Chief Complaint)
-                    </h6>
+            <!-- 2. Lý do khám & Tiền sử -->
+            <div class="card border">
+                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                    <span class="fw-bold small text-secondary">Lý do khám &amp; Tiền sử bệnh</span>
+                    <span class="badge bg-light text-dark border">@Model.PastHistory.Count lần trước</span>
                 </div>
                 <div class="card-body p-3">
-                    <p class="mb-0 text-dark">
-                        @(string.IsNullOrEmpty(Model.ChiefComplaint) ? "Bệnh nhân không ghi chú lý do cụ thể (khám định kỳ)." : Model.ChiefComplaint)
-                    </p>
-                </div>
-            </div>
-
-            <!-- 3. Tiền sử các lần khám trước -->
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
-                    <h6 class="fw-bold text-secondary mb-0">
-                        <i class="bi bi-clock-history me-1"></i>Lịch sử khám bệnh trước đây
-                    </h6>
-                    <span class="badge bg-light text-muted border">@Model.PastHistory.Count lần</span>
-                </div>
-                <div class="card-body p-3" style="max-height: 350px; overflow-y: auto;">
-                    @if (Model.PastHistory == null || !Model.PastHistory.Any())
-                    {
-                        <div class="text-center py-3 text-muted small">
-                            <i class="bi bi-journal-x fs-3 d-block mb-1 opacity-50"></i>
-                            Đây là lần khám đầu tiên của bệnh nhân tại phòng khám.
+                    <!-- Lý do khám -->
+                    <div class="mb-3 pb-3 border-bottom">
+                        <small class="text-muted fw-semibold d-block mb-1">Lý do đến khám hôm nay:</small>
+                        <div class="p-2 bg-light rounded border small text-dark">
+                            @(string.IsNullOrEmpty(Model.ChiefComplaint) ? "Khám bệnh định kỳ." : Model.ChiefComplaint)
                         </div>
-                    }
-                    else
-                    {
-                        <div class="timeline">
-                            @foreach (var ph in Model.PastHistory)
+                    </div>
+
+                    <!-- Tiền sử khám: cắt ngắn vừa vặn cân bằng bố cục bên phải -->
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <small class="text-muted fw-semibold">Lịch sử các lần khám trước:</small>
+                            @if (Model.PastHistory.Count > 2)
                             {
-                                <div class="p-2 mb-2 border rounded bg-light">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <strong class="text-primary small">
-                                            <i class="bi bi-calendar3 me-1"></i>@ph.Date.ToString("dd/MM/yyyy")
-                                        </strong>
-                                        <small class="text-muted">BS: @ph.DoctorName</small>
-                                    </div>
-                                    <div class="small mb-1">
-                                        <strong>Chẩn đoán:</strong> @ph.Diagnosis
-                                        @if (!string.IsNullOrEmpty(ph.ICD10Code))
-                                        {
-                                            <span class="badge bg-secondary ms-1">@ph.ICD10Code</span>
-                                        }
-                                    </div>
-                                    @if (!string.IsNullOrEmpty(ph.DoctorNotes))
-                                    {
-                                        <div class="small text-muted">
-                                            <em>Lời dặn: @ph.DoctorNotes</em>
-                                        </div>
-                                    }
-                                </div>
+                                <small class="text-muted fst-italic">Cuộn xem thêm (@Model.PastHistory.Count lần)</small>
                             }
                         </div>
-                    }
+                        <div style="max-height: 155px; overflow-y: auto;">
+                            @if (Model.PastHistory == null || !Model.PastHistory.Any())
+                            {
+                                <div class="text-center py-3 text-muted small bg-light rounded border">
+                                    Chưa có lịch sử khám trước đây tại phòng khám.
+                                </div>
+                            }
+                            else
+                            {
+                                @foreach (var ph in Model.PastHistory)
+                                {
+                                    <div class="p-2 mb-2 border rounded bg-light">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <strong class="text-primary small">@ph.Date.ToString("dd/MM/yyyy")</strong>
+                                            <small class="text-muted">BS: @ph.DoctorName</small>
+                                        </div>
+                                        <div class="small">
+                                            <strong>Chẩn đoán:</strong> @ph.Diagnosis
+                                            @if (!string.IsNullOrEmpty(ph.ICD10Code))
+                                            {
+                                                <span class="badge bg-secondary ms-1">@ph.ICD10Code</span>
+                                            }
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(ph.DoctorNotes))
+                                        {
+                                            <div class="small text-muted mt-1">Lời dặn: @ph.DoctorNotes</div>
+                                        }
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Cột Phải: Chỉ định xét nghiệm nhanh & Ghi nhận Bệnh án EMR -->
+        <!-- Cột Phải: Xét nghiệm nhanh & Hồ sơ bệnh án EMR -->
         <div class="col-lg-7">
-            <!-- 1. Chỉ định xét nghiệm nhanh cận lâm sàng (Rapid Diagnostics) -->
-            <div class="card shadow-sm border-0 mb-3">
-                <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
-                    <h6 class="fw-bold text-primary mb-0">
-                        <i class="bi bi-eyedropper me-1"></i>Chỉ định xét nghiệm nhanh tại phòng khám
-                    </h6>
-                    <span class="badge bg-primary-subtle text-primary border">@Model.ServiceOrders.Count chỉ định</span>
+            <!-- 1. Chỉ định xét nghiệm nhanh -->
+            <div class="card border mb-3">
+                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                    <span class="fw-bold small text-primary">Chỉ định cận lâm sàng / Xét nghiệm nhanh</span>
+                    <span class="badge bg-primary">@Model.ServiceOrders.Count</span>
                 </div>
                 <div class="card-body p-3">
-                    <!-- Form thêm chỉ định xét nghiệm -->
                     @if (!isCompleted)
                     {
                         <form asp-action="OrderService" method="post" class="row g-2 mb-3 pb-3 border-bottom">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="appointmentId" value="@Model.AppointmentId" />
-                            <div class="col-sm-8">
+                            <div class="col-sm-9">
                                 <select name="serviceId" class="form-select form-select-sm" required>
-                                    <option value="">-- Chọn xét nghiệm / Dịch vụ cận lâm sàng --</option>
+                                    <option value="">-- Chọn xét nghiệm / Dịch vụ --</option>
                                     @foreach (var s in Model.AvailableServices)
                                     {
                                         <option value="@s.ServiceId">
@@ -253,19 +241,16 @@
                                     }
                                 </select>
                             </div>
-                            <div class="col-sm-4">
-                                <button type="submit" class="btn btn-sm btn-outline-primary w-100">
-                                    <i class="bi bi-plus-circle me-1"></i>Thêm chỉ định
-                                </button>
+                            <div class="col-sm-3">
+                                <button type="submit" class="btn btn-sm btn-outline-primary w-100">Chỉ định</button>
                             </div>
                         </form>
                     }
 
-                    <!-- Danh sách các chỉ định đã gọi -->
                     @if (!Model.ServiceOrders.Any())
                     {
                         <div class="text-muted small text-center py-2">
-                            Chưa có chỉ định xét nghiệm nào trong lần khám này.
+                            Chưa có chỉ định xét nghiệm nào trong ca khám này.
                         </div>
                     }
                     else
@@ -275,12 +260,12 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th>Tên xét nghiệm</th>
-                                        <th style="width: 110px;">Đơn giá</th>
-                                        <th>Kết quả tóm tắt</th>
-                                        <th class="text-center" style="width: 100px;">Trạng thái</th>
+                                        <th style="width: 100px;">Đơn giá</th>
+                                        <th>Kết quả</th>
+                                        <th class="text-center" style="width: 90px;">Trạng thái</th>
                                         @if (!isCompleted)
                                         {
-                                            <th class="text-center" style="width: 60px;">Xóa</th>
+                                            <th class="text-center" style="width: 50px;">Xóa</th>
                                         }
                                     </tr>
                                 </thead>
@@ -288,7 +273,7 @@
                                     @foreach (var order in Model.ServiceOrders)
                                     {
                                         <tr>
-                                            <td class="fw-medium small">@order.ServiceName</td>
+                                            <td class="small fw-semibold">@order.ServiceName</td>
                                             <td class="small text-muted">@order.UnitPrice.ToString("N0") đ</td>
                                             <td>
                                                 @if (!isCompleted)
@@ -300,36 +285,32 @@
                                                         <input type="text" name="resultSummary" value="@order.ResultSummary" 
                                                                class="form-control form-control-sm" placeholder="Nhập kết quả..." />
                                                         <button type="submit" name="markCompleted" value="true" 
-                                                                class="btn btn-sm btn-outline-success" title="Lưu & Đánh dấu hoàn tất">
-                                                            <i class="bi bi-check-lg"></i>
-                                                        </button>
+                                                                class="btn btn-sm btn-outline-success text-nowrap">Lưu</button>
                                                     </form>
                                                 }
                                                 else
                                                 {
-                                                    <span class="small">@(string.IsNullOrEmpty(order.ResultSummary) ? "Chưa có kết quả" : order.ResultSummary)</span>
+                                                    <span class="small">@(string.IsNullOrEmpty(order.ResultSummary) ? "Chưa có" : order.ResultSummary)</span>
                                                 }
                                             </td>
                                             <td class="text-center">
                                                 @if (order.Status == "Completed")
                                                 {
-                                                    <span class="badge bg-success small">Đã xong</span>
+                                                    <span class="badge bg-success">Đã xong</span>
                                                 }
                                                 else
                                                 {
-                                                    <span class="badge bg-warning text-dark small">Chờ KQ</span>
+                                                    <span class="badge bg-warning text-dark">Chờ KQ</span>
                                                 }
                                             </td>
                                             @if (!isCompleted)
                                             {
                                                 <td class="text-center">
-                                                    <form asp-action="DeleteService" method="post" onsubmit="return confirm('Bạn có chắc muốn hủy chỉ định này?');">
+                                                    <form asp-action="DeleteService" method="post" class="delete-service-form">
                                                         @Html.AntiForgeryToken()
                                                         <input type="hidden" name="appointmentId" value="@Model.AppointmentId" />
                                                         <input type="hidden" name="serviceOrderId" value="@order.ServiceOrderId" />
-                                                        <button type="submit" class="btn btn-sm btn-link text-danger p-0" title="Hủy">
-                                                            <i class="bi bi-trash"></i>
-                                                        </button>
+                                                        <button type="button" class="btn btn-sm btn-link text-danger p-0 text-decoration-none" onclick="promptDeleteService(this)">Hủy</button>
                                                     </form>
                                                 </td>
                                             }
@@ -342,76 +323,62 @@
                 </div>
             </div>
 
-            <!-- 2. Ghi nhận Bệnh án & Chẩn đoán EMR (ICD-10) -->
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-white py-2">
-                    <h6 class="fw-bold text-success mb-0">
-                        <i class="bi bi-file-earmark-medical me-1"></i>Hồ sơ Bệnh án Điện tử (EMR) &amp; Chẩn đoán
-                    </h6>
+            <!-- 2. Ghi nhận Hồ sơ bệnh án EMR -->
+            <div class="card border">
+                <div class="card-header bg-light py-2">
+                    <span class="fw-bold small text-success">Hồ sơ bệnh án &amp; Kết luận điều trị</span>
                 </div>
                 <div class="card-body p-3">
-                    <form asp-action="SaveEMR" method="post">
+                    <form asp-action="SaveEMR" method="post" id="emrForm">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="appointmentId" value="@Model.AppointmentId" />
+                        <input type="hidden" name="completeConsultation" id="completeConsultationFlag" value="false" />
 
                         <!-- Chẩn đoán chính -->
                         <div class="mb-3">
-                            <label class="form-label fw-semibold small">
-                                Chẩn đoán lâm sàng <span class="text-danger">*</span>
-                            </label>
-                            <input type="text" name="diagnosis" class="form-control" value="@Model.Diagnosis" 
-                                   placeholder="Ví dụ: Viêm họng cấp do virus, Viêm phế quản..." required @(isCompleted ? "readonly" : "") />
+                            <label class="form-label fw-semibold small">Chẩn đoán lâm sàng <span class="text-danger">*</span></label>
+                            <input type="text" name="diagnosis" id="emrDiagnosis" class="form-control" value="@Model.Diagnosis" 
+                                   placeholder="Nhập chẩn đoán bệnh..." required @(isCompleted ? "readonly" : "") />
                         </div>
 
                         <!-- Mã ICD-10 & Ngày tái khám -->
                         <div class="row g-2 mb-3">
                             <div class="col-md-6">
-                                <label class="form-label fw-semibold small">
-                                    Mã bệnh ICD-10
-                                </label>
-                                <div class="input-group">
-                                    <input type="text" name="icd10Code" class="form-control" value="@Model.ICD10Code" 
-                                           placeholder="J00, I10, E11..." maxlength="20" @(isCompleted ? "readonly" : "") />
-                                    <span class="input-group-text bg-light text-muted small">ICD-10</span>
-                                </div>
-                                <div class="form-text small text-muted">Ví dụ: J00 (Cảm lạnh), I10 (Tăng huyết áp), E11 (Tiểu đường type 2)</div>
+                                <label class="form-label fw-semibold small">Mã bệnh ICD-10</label>
+                                <input type="text" name="icd10Code" class="form-control" value="@Model.ICD10Code" 
+                                       placeholder="Ví dụ: J00, I10, E11" maxlength="20" @(isCompleted ? "readonly" : "") />
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-semibold small">
-                                    Ngày hẹn tái khám (nếu có)
-                                </label>
+                                <label class="form-label fw-semibold small">Ngày hẹn tái khám</label>
                                 <input type="date" name="followUpDate" class="form-control" 
                                        value="@(Model.FollowUpDate?.ToString("yyyy-MM-dd"))" 
                                        min="@DateTime.Today.AddDays(1).ToString("yyyy-MM-dd")" @(isCompleted ? "readonly" : "") />
                             </div>
                         </div>
 
-                        <!-- Lời dặn của Bác sĩ -->
+                        <!-- Lời dặn -->
                         <div class="mb-4">
-                            <label class="form-label fw-semibold small">
-                                Lời dặn dò &amp; Ghi chú của Bác sĩ
-                            </label>
+                            <label class="form-label fw-semibold small">Lời dặn của Bác sĩ / Hướng dẫn điều trị</label>
                             <textarea name="doctorNotes" rows="3" class="form-control" 
-                                      placeholder="Chế độ ăn uống, sinh hoạt, kiêng cữ hoặc lưu ý theo dõi..." @(isCompleted ? "readonly" : "")>@Model.DoctorNotes</textarea>
+                                      placeholder="Ghi chú điều trị, chế độ sinh hoạt, đơn thuốc..." @(isCompleted ? "readonly" : "")>@Model.DoctorNotes</textarea>
                         </div>
 
                         <!-- Action Buttons -->
                         @if (!isCompleted)
                         {
                             <div class="d-flex justify-content-between align-items-center">
-                                <button type="submit" name="completeConsultation" value="false" class="btn btn-outline-primary px-3 shadow-sm">
-                                    <i class="bi bi-save me-1"></i>Lưu tạm bệnh án
+                                <button type="submit" class="btn btn-outline-primary btn-sm">
+                                    Lưu tạm bệnh án
                                 </button>
-                                <button type="submit" name="completeConsultation" value="true" class="btn btn-success px-4 shadow-sm"
-                                        onclick="return confirm('Bạn có chắc chắn muốn hoàn thành ca khám này? Sau khi hoàn thành, bệnh nhân sẽ rời khỏi hàng đợi khám.');">
-                                    <i class="bi bi-check2-all me-1"></i>Hoàn thành ca khám
+                                <button type="button" class="btn btn-success btn-sm px-4 fw-semibold" onclick="promptCompleteConsultation()">
+                                    Hoàn thành ca khám
                                 </button>
                             </div>
                         }
                         else
                         {
-                            <div class="alert alert-info py-2 mb-0 small">
-                                <i class="bi bi-check-circle-fill me-1"></i>Ca khám này đã được hoàn thành. Thông tin bệnh án đã được lưu trữ bảo mật trong hệ thống.
+                            <div class="p-2 mb-0 rounded bg-light border text-center small text-success fw-semibold">
+                                Ca khám đã hoàn thành. Hồ sơ bệnh án đã được lưu trữ vào hệ thống.
                             </div>
                         }
                     </form>
@@ -421,3 +388,93 @@
     </div>
 </div>
 
+<!-- Modal Xác nhận Hoàn thành ca khám -->
+<div class="modal fade" id="confirmCompleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border">
+            <div class="modal-header py-2 bg-success text-white">
+                <h6 class="modal-title fw-bold mb-0">Xác nhận hoàn thành</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center py-3">
+                <p class="mb-0 text-dark small">Xác nhận hoàn tất ca khám cho bệnh nhân <strong>@Model.PatientName</strong>? Ca khám sẽ được lưu và chuyển trạng thái Đã khám.</p>
+            </div>
+            <div class="modal-footer py-2 justify-content-center">
+                <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-sm btn-success px-3 fw-semibold" id="btnConfirmCompleteSubmit">Xác nhận</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Xác nhận Hủy chỉ định xét nghiệm -->
+<div class="modal fade" id="confirmDeleteServiceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border">
+            <div class="modal-header py-2 bg-danger text-white">
+                <h6 class="modal-title fw-bold mb-0">Hủy chỉ định</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center py-3">
+                <p class="mb-0 text-dark small">Bạn có chắc chắn muốn hủy chỉ định xét nghiệm này?</p>
+            </div>
+            <div class="modal-footer py-2 justify-content-center">
+                <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-sm btn-danger px-3 fw-semibold" id="btnConfirmDeleteServiceSubmit">Đồng ý</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        var pendingDeleteForm = null;
+
+        function promptDeleteService(btn) {
+            pendingDeleteForm = btn.closest('form');
+            var modalEl = document.getElementById('confirmDeleteServiceModal');
+            if (modalEl) {
+                var modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            }
+        }
+
+        function promptCompleteConsultation() {
+            var diagInput = document.getElementById('emrDiagnosis');
+            if (!diagInput || !diagInput.value.trim()) {
+                if (typeof showNotificationModal === 'function') {
+                    showNotificationModal("Thông báo", "Vui lòng nhập chẩn đoán lâm sàng trước khi hoàn thành ca khám.", false);
+                }
+                diagInput.focus();
+                return;
+            }
+
+            var modalEl = document.getElementById('confirmCompleteModal');
+            if (modalEl) {
+                var modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            var btnCompleteConfirm = document.getElementById('btnConfirmCompleteSubmit');
+            if (btnCompleteConfirm) {
+                btnCompleteConfirm.addEventListener('click', function () {
+                    var form = document.getElementById('emrForm');
+                    var flag = document.getElementById('completeConsultationFlag');
+                    if (flag) flag.value = "true";
+                    if (form) form.submit();
+                });
+            }
+
+            var btnDeleteConfirm = document.getElementById('btnConfirmDeleteServiceSubmit');
+            if (btnDeleteConfirm) {
+                btnDeleteConfirm.addEventListener('click', function () {
+                    if (pendingDeleteForm) {
+                        pendingDeleteForm.submit();
+                    }
+                });
+            }
+        });
+    </script>
+}

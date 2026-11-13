@@ -83,60 +83,63 @@
             </div>
         </div>
 
-        <!-- Tra cứu & Đặt lịch khám nhanh (Booking Search Widget) -->
-        <div class="card shadow border-0 rounded-4 mt-3 bg-white text-dark">
-            <div class="card-body p-4">
-                <div class="d-flex align-items-center mb-3">
-                    <i class="bi bi-search text-primary fs-4 me-2"></i>
-                    <h5 class="fw-bold mb-0 text-primary">Tìm kiếm Bác sĩ & Khung giờ khám nhanh</h5>
-                </div>
+        @if (!isStaff)
+        {
+            <!-- Tra cứu & Đặt lịch khám nhanh (Booking Search Widget) -->
+            <div class="card shadow border-0 rounded-4 mt-3 bg-white text-dark">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="bi bi-search text-primary fs-4 me-2"></i>
+                        <h5 class="fw-bold mb-0 text-primary">Tìm kiếm Bác sĩ & Khung giờ khám nhanh</h5>
+                    </div>
 
-                <form method="get" asp-controller="Booking" asp-action="Search" class="row g-3 align-items-end">
-                    <!-- Chọn Chuyên khoa -->
-                    <div class="col-md-4">
-                        <label class="form-label fw-semibold small text-muted">Chuyên khoa khám bệnh</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-light border-end-0"><i class="bi bi-hospital text-primary"></i></span>
-                            <select name="departmentId" class="form-select border-start-0">
-                                <option value="">-- Tất cả chuyên khoa --</option>
-                                @if (Model.Specialties != null)
-                                {
-                                    foreach (var dept in Model.Specialties)
+                    <form method="get" asp-controller="Booking" asp-action="Search" class="row g-3 align-items-end">
+                        <!-- Chọn Chuyên khoa -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small text-muted">Chuyên khoa khám bệnh</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0"><i class="bi bi-hospital text-primary"></i></span>
+                                <select name="departmentId" class="form-select border-start-0">
+                                    <option value="">-- Tất cả chuyên khoa --</option>
+                                    @if (Model.Specialties != null)
                                     {
-                                        <option value="@dept.Id">@dept.Name</option>
+                                        foreach (var dept in Model.Specialties)
+                                        {
+                                            <option value="@dept.Id">@dept.Name</option>
+                                        }
                                     }
-                                }
-                            </select>
+                                </select>
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- Chọn Ngày khám -->
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold small text-muted">Ngày khám dự kiến</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-light border-end-0"><i class="bi bi-calendar-event text-primary"></i></span>
-                            <input type="date" name="date" class="form-control border-start-0" value="@todayStr" min="@todayStr" />
+                        <!-- Chọn Ngày khám -->
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold small text-muted">Ngày khám dự kiến</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0"><i class="bi bi-calendar-event text-primary"></i></span>
+                                <input type="date" name="date" class="form-control border-start-0" value="@todayStr" min="@todayStr" />
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- Tìm theo tên bác sĩ -->
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold small text-muted">Tên Bác sĩ (tùy chọn)</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-light border-end-0"><i class="bi bi-person text-primary"></i></span>
-                            <input type="text" name="term" class="form-control border-start-0" placeholder="BS. An, BS. Hà..." />
+                        <!-- Tìm theo tên bác sĩ -->
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold small text-muted">Tên Bác sĩ (tùy chọn)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0"><i class="bi bi-person text-primary"></i></span>
+                                <input type="text" name="term" class="form-control border-start-0" placeholder="BS. An, BS. Hà..." />
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- Nút Tra cứu -->
-                    <div class="col-md-2 d-grid">
-                        <button type="submit" class="btn btn-primary fw-bold py-2 shadow-sm">
-                            <i class="bi bi-search me-1"></i>Tra Cứu
-                        </button>
-                    </div>
-                </form>
+                        <!-- Nút Tra cứu -->
+                        <div class="col-md-2 d-grid">
+                            <button type="submit" class="btn btn-primary fw-bold py-2 shadow-sm">
+                                <i class="bi bi-search me-1"></i>Tra Cứu
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
-        </div>
+        }
     </div>
 
     <!-- 2. Khối quy trình phân quyền: Nhân viên thấy công cụ - Khách/Bệnh nhân thấy hướng dẫn -->
@@ -275,8 +278,10 @@
         </div>
     }
 
-    <!-- 3. Đội ngũ Bác sĩ Chuyên khoa Hàng đầu (Featured Specialists) -->
-    <div id="featured-doctors" class="mb-5">
+    @if (!isStaff)
+    {
+        <!-- 3. Đội ngũ Bác sĩ Chuyên khoa Hàng đầu (Featured Specialists) -->
+        <div id="featured-doctors" class="mb-5">
         <div class="d-flex justify-content-between align-items-end mb-4 border-bottom pb-2">
             <div>
                 <h2 class="fw-bold text-dark mb-1">
@@ -339,6 +344,7 @@
             }
         </div>
     </div>
+    }
 
     <!-- 4. Cam kết chất lượng dịch vụ phòng khám (Hoàn toàn không có VNPAY) -->
     <div class="row g-3 py-4 bg-white rounded-4 shadow-sm border text-center">
