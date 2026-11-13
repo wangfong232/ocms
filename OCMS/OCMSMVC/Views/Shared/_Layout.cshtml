@@ -19,15 +19,38 @@
     <link rel="stylesheet" href="~/OCMSMVC.styles.css" asp-append-version="true" />
 </head>
 <body class="d-flex flex-column min-vh-100 bg-light">
+    
+    @{
+        var role = Context.Session.GetString("Role");
+        var fullName = Context.Session.GetString("FullName");
+        var email = Context.Session.GetString("Email");
+        bool isGuest = string.IsNullOrEmpty(role);
+        bool isPatient = role == "Patient";
+        bool isDoctor = role == "Doctor";
+        bool isStaff = role == "Staff";
+        bool isAdmin = role == "Admin";
+    }
+
     <!-- Header / Navbar -->
     <header>
         <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
             <div class="container">
+                
                 <!-- Brand Logo -->
-                <a class="navbar-brand fw-bold d-flex align-items-center" asp-controller="Home" asp-action="Index">
-                    <i class="bi bi-hospital me-2 fs-4 text-warning"></i>
-                    <span>OCMS Clinic</span>
-                </a>
+                @if (isAdmin)
+                {
+                    <a class="navbar-brand fw-bold d-flex align-items-center" asp-controller="Admin" asp-action="Index">
+                        <i class="bi bi-hospital me-2 fs-4 text-warning"></i>
+                        <span>OCMS Clinic</span>
+                    </a>
+                }
+                else
+                {
+                    <a class="navbar-brand fw-bold d-flex align-items-center" asp-controller="Home" asp-action="Index">
+                        <i class="bi bi-hospital me-2 fs-4 text-warning"></i>
+                        <span>OCMS Clinic</span>
+                    </a>
+                }
 
                 <!-- Mobile Toggle Button -->
                 <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain" aria-controls="navbarMain" aria-expanded="false" aria-label="Toggle navigation">
@@ -36,24 +59,17 @@
 
                 <!-- Navigation Links -->
                 <div class="collapse navbar-collapse" id="navbarMain">
-                    @{
-                        var role = Context.Session.GetString("Role");
-                        var fullName = Context.Session.GetString("FullName");
-                        var email = Context.Session.GetString("Email");
-                        bool isGuest = string.IsNullOrEmpty(role);
-                        bool isPatient = role == "Patient";
-                        bool isDoctor = role == "Doctor";
-                        bool isStaff = role == "Staff";
-                        bool isAdmin = role == "Admin";
-                    }
-
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0 align-items-lg-center">
-                        <!-- 1. Trang chủ (Mọi người đều thấy) -->
-                        <li class="nav-item">
-                            <a class="nav-link text-white fw-medium" asp-controller="Home" asp-action="Index">
-                                <i class="bi bi-house-door me-1"></i>Trang chủ
-                            </a>
-                        </li>
+                        
+                        <!-- 1. Trang chủ -->
+                        @if (!isAdmin)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-white fw-medium" asp-controller="Home" asp-action="Index">
+                                    <i class="bi bi-house-door me-1"></i>Trang chủ
+                                </a>
+                            </li>
+                        }
 
                         <!-- 2. Đặt lịch khám (Khách, Bệnh nhân) -->
                         @if (isGuest || isPatient)
@@ -169,18 +185,14 @@
                                             <i class="bi bi-door-closed me-2 text-info"></i>Quản lý phòng khám
                                         </a>
                                     </li>
-                                </ul>
-                            </li>
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle text-white fw-medium" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="bi bi-hospital me-1"></i>Vận hành & Giám sát
-                                </a>
-                                <ul class="dropdown-menu shadow border-0">
-                                    <li><a class="dropdown-item py-2" asp-controller="Reception" asp-action="CheckIn"><i class="bi bi-qr-code-scan me-2 text-primary"></i>Cổng tiếp đón & Quét QR</a></li>
-                                    <li><a class="dropdown-item py-2" asp-controller="Reception" asp-action="WalkIn"><i class="bi bi-person-plus me-2 text-warning"></i>Đăng ký vãng lai</a></li>
-                                    <li><a class="dropdown-item py-2" asp-controller="Queue" asp-action="Dispatch"><i class="bi bi-broadcast me-2 text-info"></i>Bảng gọi số khám</a></li>
-                                    <li><a class="dropdown-item py-2" asp-controller="Billing" asp-action="Index"><i class="bi bi-cash-stack me-2 text-success"></i>Quầy thu ngân</a></li>
-                                    <li><a class="dropdown-item py-2" asp-controller="Pharmacy" asp-action="Index"><i class="bi bi-capsule me-2 text-danger"></i>Nhà thuốc phòng khám</a></li>
+                                    <li>
+                                        <hr class="dropdown-divider">
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2" asp-controller="Admin" asp-action="Dashboard">
+                                            <i class="bi bi-bar-chart-line me-2 text-danger"></i>Thống kê doanh thu
+                                        </a>
+                                    </li>
                                 </ul>
                             </li>
                         }
@@ -190,7 +202,7 @@
                     <ul class="navbar-nav ms-auto align-items-center">
                         @if (!isGuest)
                         {
-                            <!-- Nút mở nhanh Modal Hồ sơ Bác sĩ nếu là Doctor -->
+                            <!-- Nút mở nhanh Modal Hồ sơ Bác sĩ -->
                             @if (isDoctor)
                             {
                                 <li class="nav-item me-2">
@@ -216,7 +228,7 @@
                                     </li>
                                     <li><hr class="dropdown-divider m-0"></li>
 
-                                    <!-- Link Bàn làm việc tương ứng vai trò -->
+                                    <!-- Link Bàn làm việc -->
                                     @if (isDoctor)
                                     {
                                         <li>
