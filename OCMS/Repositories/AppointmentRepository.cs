@@ -317,7 +317,7 @@ namespace Repositories
                 PatientId = patientId,
                 DoctorId = slot.DoctorSchedule.DoctorId,
                 TimeSlotId = slotId,
-                AppointmentDate = slot.DoctorSchedule.WorkDate,
+                AppointmentDate = slot.DoctorSchedule.WorkDate.Date.Add(slot.StartTime),
                 Status = "Confirmed",
                 Reason = reason,
                 QrCodeToken = qrToken,

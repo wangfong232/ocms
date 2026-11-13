@@ -47,7 +47,7 @@
 
                     <div class="col-md-6">
                         <label asp-for="PhoneNumber" class="form-label fw-semibold">Số điện thoại liên hệ <span class="text-danger">*</span></label>
-                        <input asp-for="PhoneNumber" class="form-control" placeholder="Ví dụ: 0912345678" required />
+                        <input asp-for="PhoneNumber" class="form-control" placeholder="Ví dụ: 0912345678" pattern="0[0-9]{9}" title="Số điện thoại phải gồm 10 chữ số bắt đầu bằng số 0" required />
                         <span asp-validation-for="PhoneNumber" class="text-danger small"></span>
                         <small class="text-muted">Hệ thống tự nhận diện nếu bệnh nhân từng khám trước đó.</small>
                     </div>
@@ -63,7 +63,7 @@
 
                     <div class="col-md-4">
                         <label asp-for="DateOfBirth" class="form-label fw-semibold">Ngày sinh <span class="text-danger">*</span></label>
-                        <input asp-for="DateOfBirth" type="date" class="form-control" required />
+                        <input asp-for="DateOfBirth" type="date" class="form-control" max="@DateTime.Today.ToString("yyyy-MM-dd")" required />
                         <span asp-validation-for="DateOfBirth" class="text-danger small"></span>
                     </div>
 

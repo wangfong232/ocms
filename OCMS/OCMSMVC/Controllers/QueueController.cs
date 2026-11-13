@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using OCMSMVC.Hubs;
 using Services;
 using System.Threading.Tasks;
 
@@ -8,10 +10,12 @@ namespace OCMSMVC.Controllers
     public class QueueController : Controller
     {
         private readonly IReceptionService _receptionService;
+        private readonly IHubContext<QueueHub> _hubContext;
 
-        public QueueController(IReceptionService receptionService)
+        public QueueController(IReceptionService receptionService, IHubContext<QueueHub> hubContext)
         {
             _receptionService = receptionService;
+            _hubContext = hubContext;
         }
 
         private bool RequireClinicPersonnel()
@@ -69,6 +73,17 @@ namespace OCMSMVC.Controllers
             var apt = result.Appointment;
             var roomNumber = apt.TimeSlot?.DoctorSchedule?.Room?.RoomNumber ?? "101";
             var patientName = apt.Patient?.User?.FullName ?? "Bệnh nhân";
+            var departmentName = apt.Doctor?.Department?.Name ?? "Phòng khám";
+
+            // PRN222 - Chapter 7: Phát thông điệp qua SignalR Hub tới toàn bộ Client (TV Sảnh + Bàn gọi số)
+            await _hubContext.Clients.All.SendAsync("PatientCalled", new
+            {
+                queueNumber = apt.QueueNumber,
+                patientName = patientName,
+                roomNumber = roomNumber,
+                departmentName = departmentName
+            });
+            await _hubContext.Clients.All.SendAsync("QueueUpdated");
 
             return Json(new
             {
@@ -91,6 +106,13 @@ namespace OCMSMVC.Controllers
             }
 
             var result = await _receptionService.CompleteConsultationAsync(appointmentId);
+
+            if (result.Success)
+            {
+                // PRN222 - Chapter 7: Cập nhật thời gian thực khi hoàn tất ca khám
+                await _hubContext.Clients.All.SendAsync("QueueUpdated");
+            }
+
             return Json(new { success = result.Success, message = result.Message });
         }
     }
