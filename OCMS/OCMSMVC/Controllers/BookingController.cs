@@ -124,8 +124,13 @@ namespace OCMSMVC.Controllers
                     }
                     else
                     {
-                        await bookingService.ReleaseSlotAsync(heldSlotId.Value);
-                        await hubContext.Clients.All.SendAsync("SlotStatusChanged", new { slotId = heldSlotId.Value, status = "Open" });
+                        var releasedVer = await bookingService.ReleaseSlotAsync(heldSlotId.Value);
+                        await hubContext.Clients.All.SendAsync("SlotStatusChanged", new
+                        {
+                            slotId = heldSlotId.Value,
+                            status = "Open",
+                            rowVersion = releasedVer
+                        });
                         HttpContext.Session.Remove("HeldSlotId");
                         HttpContext.Session.Remove("HeldExpiresAt");
                         heldSlotId = null;

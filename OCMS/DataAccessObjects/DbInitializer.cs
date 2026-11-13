@@ -145,6 +145,18 @@ namespace DataAccessObjects
                         IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'DoctorSchedules' AND COLUMN_NAME = 'Status')
                             ALTER TABLE DoctorSchedules ADD Status NVARCHAR(20) NOT NULL CONSTRAINT DF_DoctorSchedules_Status DEFAULT 'Active';
                     END
+                    """,
+
+                    // Table: TimeSlots
+                    """
+                    IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'TimeSlots')
+                    BEGIN
+                        IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'TimeSlots' AND COLUMN_NAME = 'HoldExpiresAt')
+                            ALTER TABLE TimeSlots ADD HoldExpiresAt DATETIME2 NULL;
+
+                        -- Tự động giải phóng toàn bộ các slot cũ bị kẹt trạng thái 'Hold' từ trước khi có cột HoldExpiresAt
+                        UPDATE TimeSlots SET Status = 'Open', HoldExpiresAt = NULL WHERE Status = 'Hold' AND HoldExpiresAt IS NULL;
+                    END
                     """
                 };
 

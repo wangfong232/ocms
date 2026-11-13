@@ -309,6 +309,7 @@ namespace Repositories
             }
 
             slot.Status = "Booked";
+            slot.HoldExpiresAt = null;
 
             string qrToken = $"QR-{slot.DoctorSchedule.WorkDate:yyyyMMdd}-{Guid.NewGuid():N}".Substring(0, 20).ToUpper();//Guid.NewGuid: Tạo một chuỗi duy nhất
 
