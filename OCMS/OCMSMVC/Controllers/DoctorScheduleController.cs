@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using OCMSMVC.Filters;
 using OCMSMVC.Models;
 using Services;
 using System;
@@ -8,6 +9,7 @@ using System.Threading.Tasks;
 
 namespace OCMSMVC.Controllers
 {
+    [RoleAuthorize("Doctor")]
     public class DoctorScheduleController : Controller
     {
         private readonly IDoctorScheduleService _doctorScheduleService;

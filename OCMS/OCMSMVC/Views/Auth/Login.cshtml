@@ -11,14 +11,6 @@
                 <small class="text-white-50">Đăng nhập tài khoản làm việc & đặt khám</small>
             </div>
             <div class="card-body p-4">
-                @if (TempData["SuccessMessage"] != null)
-                {
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        <i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                }
-
                 @if (!ViewData.ModelState.IsValid && ViewData.ModelState[string.Empty]?.Errors.Count > 0)
                 {
                     <div class="alert alert-danger" role="alert">
@@ -27,7 +19,7 @@
                     </div>
                 }
 
-                <form asp-action="Login" method="post">
+                <form asp-action="Login" asp-route-returnUrl="@ViewBag.ReturnUrl" method="post">
                     <div class="mb-3">
                         <label asp-for="Email" class="form-label fw-semibold">Địa chỉ Email</label>
                         <div class="input-group">

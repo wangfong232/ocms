@@ -2,11 +2,13 @@ using BusinessObjects.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using OCMSMVC.Filters;
 using OCMSMVC.Models;
 using Services;
 
 namespace OCMSMVC.Controllers;
 
+[RoleAuthorize("Admin")]
 public class AdminController : Controller
 {
     private readonly IAdminManagementService _admin;

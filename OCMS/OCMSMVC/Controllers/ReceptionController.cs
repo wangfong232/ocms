@@ -3,6 +3,7 @@ using DataAccessObjects;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using OCMSMVC.Filters;
 using OCMSMVC.Hubs;
 using OCMSMVC.Models;
 using Services;
@@ -11,6 +12,7 @@ using System.Threading.Tasks;
 
 namespace OCMSMVC.Controllers
 {
+    [RoleAuthorize("Staff", "Admin")]
     public class ReceptionController : Controller
     {
         private readonly IReceptionService _receptionService;

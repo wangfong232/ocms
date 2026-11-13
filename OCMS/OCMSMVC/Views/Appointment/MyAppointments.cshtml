@@ -20,21 +20,6 @@
 		</div>
 	</div>
 
-	@if (TempData["SuccessMessage"] != null)
-	{
-		<div class="alert alert-success alert-dismissible fade show border-1 py-2" role="alert">
-			<span>@TempData["SuccessMessage"]</span>
-			<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-		</div>
-	}
-	@if (TempData["ErrorMessage"] != null)
-	{
-		<div class="alert alert-danger alert-dismissible fade show border-1 py-2" role="alert">
-			<span>@TempData["ErrorMessage"]</span>
-			<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-		</div>
-	}
-
 	<!-- Tabs Navigation -->
 	<ul class="nav nav-pills mb-4 nav-justified bg-light p-1 rounded-2 border" id="appointmentTabs" role="tablist">
 		<li class="nav-item" role="presentation">
@@ -279,6 +264,12 @@
 										{
 											<small class="text-danger">
 												@(p.CancellationReason ?? "Bệnh nhân yêu cầu hủy")
+											</small>
+										}
+										else if (p.Status == "NoShow")
+										{
+											<small class="text-secondary fst-italic">
+												<i class="bi bi-clock-history me-1"></i>@(p.CancellationReason ?? "Vắng mặt / Không đến khám theo giờ hẹn")
 											</small>
 										}
 										else if (!string.IsNullOrEmpty(p.Reason))

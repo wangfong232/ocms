@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using OCMSMVC.Filters;
 using OCMSMVC.Hubs;
 using Services;
 using System.Threading.Tasks;
@@ -42,13 +43,9 @@ namespace OCMSMVC.Controllers
 
         // GET: /Queue/Dispatch (Bảng điều phối gọi số dành cho nhân viên lễ tân / bác sĩ)
         [HttpGet]
+        [RoleAuthorize("Staff", "Doctor", "Admin")]
         public async Task<IActionResult> Dispatch()
         {
-            if (!RequireClinicPersonnel())
-            {
-                return RedirectToAction("Login", "Auth");
-            }
-
             var boardData = await _receptionService.GetLobbyQueueBoardDataAsync();
             return View(boardData);
         }
@@ -56,13 +53,9 @@ namespace OCMSMVC.Controllers
         // POST: /Queue/CallPatient (Bác sĩ/Nhân viên bấm gọi bệnh nhân vào khám)
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [RoleAuthorize("Staff", "Doctor", "Admin")]
         public async Task<IActionResult> CallPatient(int appointmentId)
         {
-            if (!RequireClinicPersonnel())
-            {
-                return Json(new { success = false, message = "Bạn không có quyền thực hiện thao tác này." });
-            }
-
             var result = await _receptionService.CallNextPatientAsync(appointmentId);
 
             if (!result.Success || result.Appointment == null)
@@ -98,13 +91,9 @@ namespace OCMSMVC.Controllers
         // POST: /Queue/CompleteConsultation (Hoàn tất ca khám)
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [RoleAuthorize("Staff", "Doctor", "Admin")]
         public async Task<IActionResult> CompleteConsultation(int appointmentId)
         {
-            if (!RequireClinicPersonnel())
-            {
-                return Json(new { success = false, message = "Bạn không có quyền thực hiện thao tác này." });
-            }
-
             var result = await _receptionService.CompleteConsultationAsync(appointmentId);
 
             if (result.Success)

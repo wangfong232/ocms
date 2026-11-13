@@ -113,7 +113,7 @@ namespace OCMSMVC
 
             // PRN222 - Chapter 7: Endpoint định tuyến cho SignalR Hub
             app.MapHub<QueueHub>("/queueHub");
-
+            app.MapHub<BookingHub>("/bookingHub");
             app.MapControllerRoute(
                 name: "default",
                 pattern: "{controller=Home}/{action=Index}/{id?}");

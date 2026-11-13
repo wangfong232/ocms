@@ -309,6 +309,7 @@ namespace Repositories
             }
 
             slot.Status = "Booked";
+            slot.HoldExpiresAt = null;
 
             string qrToken = $"QR-{slot.DoctorSchedule.WorkDate:yyyyMMdd}-{Guid.NewGuid():N}".Substring(0, 20).ToUpper();//Guid.NewGuid: Tạo một chuỗi duy nhất
 
@@ -344,6 +345,18 @@ namespace Repositories
             return await _context.Patients.Include(p => p.User).FirstOrDefaultAsync(p => p.UserId == userId);
         }
 
+        public async Task<List<Appointment>> GetActiveAppointmentsByPatientAndDateAsync(int patientId, DateTime date)
+        {
+            var targetDate = date.Date;
+            return await _context.Appointments
+                .Include(a => a.Doctor)
+                .Include(a => a.TimeSlot)
+                .Where(a => a.PatientId == patientId 
+                         && a.AppointmentDate.Date == targetDate 
+                         && (a.Status == "Confirmed" || a.Status == "Pending" || a.Status == "Arrived" || a.Status == "InConsultation"))
+                .ToListAsync();
+        }
+
         public async Task<Appointment?> GetAppointmentByIdAndPatientAsync(int appointmentId, int patientId)
         {
             return await _context.Appointments.Include(a => a.Patient).ThenInclude(p => p.User)
@@ -357,7 +370,7 @@ namespace Repositories
 
         public async Task<List<Appointment>> GetAppointmentsByPatientIdAsync(int patientId)
         {
-            return await _context.Appointments.Include(a => a.Doctor).ThenInclude(d => d.User)
+            var appts = await _context.Appointments.Include(a => a.Doctor).ThenInclude(d => d.User)
                                             .Include(a => a.Doctor).ThenInclude(d => d.Department)
                                             .Include(a => a.Doctor).ThenInclude(d => d.DefaultRoom)
                                             .Include(a => a.TimeSlot).ThenInclude(ts => ts.DoctorSchedule).ThenInclude(s => s.Room)
@@ -366,6 +379,44 @@ namespace Repositories
                                             .OrderByDescending(a => a.AppointmentDate)
                                             .ThenByDescending(a => a.TimeSlot.StartTime)
                                             .ToListAsync();
+
+            bool hasChanges = false;
+            var today = DateTime.Today;
+            var currentTime = DateTime.Now.TimeOfDay;
+
+            foreach (var a in appts)
+            {
+                if (a.AppointmentDate.Date < today)
+                {
+                    if (a.Status == "InConsultation")
+                    {
+                        a.Status = "Completed";
+                        hasChanges = true;
+                    }
+                    else if (a.Status == "Confirmed" || a.Status == "Pending" || a.Status == "Arrived")
+                    {
+                        a.Status = "NoShow";
+                        a.CancellationReason = string.IsNullOrWhiteSpace(a.CancellationReason) ? "Quá ngày hẹn - Bệnh nhân không đến khám" : a.CancellationReason;
+                        hasChanges = true;
+                    }
+                }
+                else if (a.AppointmentDate.Date == today && a.TimeSlot != null && currentTime > a.TimeSlot.EndTime.Add(TimeSpan.FromMinutes(60)))
+                {
+                    if (a.Status == "Confirmed" || a.Status == "Pending")
+                    {
+                        a.Status = "NoShow";
+                        a.CancellationReason = string.IsNullOrWhiteSpace(a.CancellationReason) ? "Quá giờ hẹn - Bệnh nhân không đến khám (Vắng mặt)" : a.CancellationReason;
+                        hasChanges = true;
+                    }
+                }
+            }
+
+            if (hasChanges)
+            {
+                await _context.SaveChangesAsync();
+            }
+
+            return appts;
         }
 
         public async Task<(bool Success, string Message, bool IsRefunded)> CancelAppointmentAsync(int appointmentId, int patientId, string? cancellationReason)

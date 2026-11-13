@@ -62,9 +62,11 @@ namespace OCMSMVC.Models
         public string StatusBadgeClass => Status switch
         {
             "Confirmed" => "bg-success",
-            "Pending" => "bg-warning text-dard",
+            "Pending" => "bg-warning text-dark",
             "Arrived" => "bg-primary",
+            "InConsultation" => "bg-info text-dark",
             "Completed" => "bg-secondary",
+            "NoShow" => "bg-secondary bg-opacity-75 text-white",
             "Cancelled" => "bg-danger",
             _ => "bg-light text-dark"
         };
@@ -76,6 +78,7 @@ namespace OCMSMVC.Models
             "Arrived" => "Đã đến (Check-in)",
             "InConsultation" => "Đang khám",
             "Completed" => "Hoàn thành",
+            "NoShow" => "Vắng mặt (Bỏ khám)",
             "Cancelled" => "Đã hủy",
             _ => Status
         };

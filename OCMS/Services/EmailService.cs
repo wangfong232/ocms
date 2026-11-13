@@ -16,11 +16,14 @@ namespace Services
 
         public async Task SendEmailAsync(string toEmail, string subject, string body)
         {
-            var smtpServer = _config["EmailSettings:SmtpServer"];
-            var port = int.Parse(_config["EmailSettings:Port"]);
-            var senderEmail = _config["EmailSettings:SenderEmail"];
-            var password = _config["EmailSettings:Password"];
-            var senderName = _config["EmailSettings:SenderName"];
+            var smtpServer = _config["EmailSettings:SmtpServer"] ?? "smtp.gmail.com";
+            if (!int.TryParse(_config["EmailSettings:Port"], out var port))
+            {
+                port = 587;
+            }
+            var senderEmail = _config["EmailSettings:SenderEmail"] ?? "hams.ocms.noreply@gmail.com";
+            var password = _config["EmailSettings:Password"] ?? "";
+            var senderName = _config["EmailSettings:SenderName"] ?? "Hệ thống Phòng khám OCMS";
 
             using (var client = new SmtpClient(smtpServer, port))
             {

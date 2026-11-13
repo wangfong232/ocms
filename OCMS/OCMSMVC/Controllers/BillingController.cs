@@ -1,10 +1,12 @@
 using BusinessObjects.Entities;
 using Microsoft.AspNetCore.Mvc;
+using OCMSMVC.Filters;
 using OCMSMVC.Models;
 using Services;
 
 namespace OCMSMVC.Controllers;
 
+[RoleAuthorize("Staff", "Admin")]
 public class BillingController : Controller
 {
     private readonly IClinicWorkflowService _workflow;
