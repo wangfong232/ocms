@@ -5,104 +5,240 @@
     ViewData["Title"] = "Admin Analytics Dashboard";
 }
 
-<div class="container py-4">
-    <h2 class="fw-bold mb-4"><i class="fa-solid fa-chart-line text-primary me-2"></i>Thống Kê Vận Hành & Doanh Thu</h2>
+<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
 
-    <div class="row g-4 mb-5">
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold mb-0"><i class="fa-solid fa-chart-line text-primary me-2"></i>Tổng Quan Vận Hành & Doanh Thu</h2>
+        
+        <div class="bg-white border rounded shadow-sm px-3 py-2" id="reportrange" style="cursor: pointer;">
+            <i class="fa-regular fa-calendar text-primary me-2"></i>
+            <span class="fw-medium text-dark">@Model.StartDate - @Model.EndDate</span> 
+            <i class="fa-solid fa-caret-down ms-2 text-muted"></i>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
         <div class="col-md-3">
-            <div class="card shadow-sm border-0 bg-primary text-white h-100">
+            <div class="card shadow-sm border-0 border-bottom border-primary border-4 h-100">
                 <div class="card-body">
-                    <h6 class="card-title text-uppercase text-white-50">Tổng Doanh Thu</h6>
-                    <h3 class="fw-bold">@Model.TotalRevenue.ToString("N0") VNĐ</h3>
+                    <h6 class="text-uppercase text-muted fw-semibold">Tổng Doanh Thu</h6>
+                    <h3 class="fw-bold text-primary mb-0">@Model.TotalRevenue.ToString("N0") đ</h3>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card shadow-sm border-0 bg-success text-white h-100">
+            <div class="card shadow-sm border-0 border-bottom border-success border-4 h-100">
                 <div class="card-body">
-                    <h6 class="card-title text-uppercase text-white-50">Tổng Bệnh Nhân</h6>
-                    <h3 class="fw-bold">@Model.TotalPatients</h3>
+                    <h6 class="text-uppercase text-muted fw-semibold">Tổng Bệnh Nhân</h6>
+                    <h3 class="fw-bold text-success mb-0">@Model.TotalPatients</h3>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card shadow-sm border-0 bg-info text-white h-100">
+            <div class="card shadow-sm border-0 border-bottom border-info border-4 h-100">
                 <div class="card-body">
-                    <h6 class="card-title text-uppercase text-white-50">Tổng Lượt Khám</h6>
-                    <h3 class="fw-bold">@Model.TotalAppointments</h3>
+                    <h6 class="text-uppercase text-muted fw-semibold">Tổng Lượt Khám</h6>
+                    <h3 class="fw-bold text-info mb-0">@Model.TotalAppointments</h3>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card shadow-sm border-0 bg-danger text-white h-100">
+            <div class="card shadow-sm border-0 border-bottom border-danger border-4 h-100">
                 <div class="card-body">
-                    <h6 class="card-title text-uppercase text-white-50">Tỷ Lệ Hủy Lịch</h6>
-                    <h3 class="fw-bold">@Model.CancellationRate %</h3>
+                    <h6 class="text-uppercase text-muted fw-semibold">Tỷ Lệ Hủy Lịch</h6>
+                    <h3 class="fw-bold text-danger mb-0">@Model.CancellationRate %</h3>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="row g-4">
-        <div class="col-md-8">
-            <div class="card shadow-sm border-0">
-                <div class="card-body">
-                    <h5 class="card-title fw-bold mb-4">Biểu đồ doanh thu năm nay</h5>
-                    <canvas id="revenueChart" height="100"></canvas>
+        <div class="col-xl-7 col-lg-7">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="fw-bold mb-0">Biến động doanh thu</h5>
+                    </div>
+                    <div class="flex-grow-1" style="position: relative; min-height: 450px;">
+                        <canvas id="trendChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
-        
-        <div class="col-md-4">
-            <div class="card shadow-sm border-0">
+
+        <div class="col-xl-5 col-lg-5">
+            
+            <div class="card shadow-sm border-0 mb-4">
                 <div class="card-body">
-                    <h5 class="card-title fw-bold mb-4">Lượt khám theo chuyên khoa</h5>
-                    <canvas id="deptChart" height="200"></canvas>
+                    <h5 class="fw-bold mb-3">Kinh doanh hôm nay (24h)</h5>
+                    <div style="position: relative; height: 200px;">
+                        <canvas id="todayHourlyChart"></canvas>
+                    </div>
                 </div>
             </div>
+
+            <div class="row g-4">
+                <!-- Bảng xếp hạng Khoa -->
+                <div class="col-sm-6">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body p-3">
+                            <h6 class="fw-bold mb-3 text-muted"><i class="fa-solid fa-trophy text-warning me-2"></i>Doanh thu theo Khoa</h6>
+                            <div class="table-responsive pe-2" style="max-height: 350px; overflow-y: auto;">
+                                <table class="table table-borderless table-hover align-middle mb-0">
+                                    <tbody>
+                                        @{
+                                            int rankDept = 1;
+                                            foreach (var item in Model.RevenueByDepartment.OrderByDescending(x => x.Value))
+                                            {
+                                                <tr class="border-bottom">
+                                                    <td class="text-center p-1" style="width: 35px;">
+                                                        @if (rankDept == 1) { <span class="fs-5">🥇</span> }
+                                                        else if (rankDept == 2) { <span class="fs-5">🥈</span> }
+                                                        else if (rankDept == 3) { <span class="fs-5">🥉</span> }
+                                                        else { <span class="badge bg-secondary">@rankDept</span> }
+                                                    </td>
+                                                    <td class="fw-semibold text-dark p-1 small">@item.Key</td>
+                                                    <td class="text-end fw-bold text-primary p-1">@item.Value.ToString("N0") đ</td>
+                                                </tr>
+                                                rankDept++;
+                                            }
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-sm-6">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body p-3">
+                            <h6 class="fw-bold mb-3 text-muted"><i class="fa-solid fa-user-doctor text-info me-2"></i>Doanh thu Bác sĩ</h6>
+                            <div class="table-responsive pe-2" style="max-height: 350px; overflow-y: auto;">
+                                <table class="table table-borderless table-hover align-middle mb-0">
+                                    <tbody>
+                                        @{
+                                            int rankDoc = 1;
+                                            foreach (var item in Model.RevenueByDoctor.OrderByDescending(x => x.Value))
+                                            {
+                                                <tr class="border-bottom">
+                                                    <td class="text-center p-1" style="width: 35px;">
+                                                        @if (rankDoc == 1) { <span class="fs-5">🥇</span> }
+                                                        else if (rankDoc == 2) { <span class="fs-5">🥈</span> }
+                                                        else if (rankDoc == 3) { <span class="fs-5">🥉</span> }
+                                                        else { <span class="badge bg-secondary">@rankDoc</span> }
+                                                    </td>
+                                                    <td class="fw-semibold text-dark p-1 small">@item.Key</td>
+                                                    <td class="text-end fw-bold text-primary p-1">@item.Value.ToString("N0") đ</td>
+                                                </tr>
+                                                rankDoc++;
+                                            }
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/jquery/latest/jquery.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
     
     <script>
-        const revLabels = @Html.Raw(JsonSerializer.Serialize(Model.RevenueByMonth.Keys));
-        const revData = @Html.Raw(JsonSerializer.Serialize(Model.RevenueByMonth.Values));
+        $(function() {
+            var start = moment('@Model.StartDate', 'DD/MM/YYYY');
+            var end = moment('@Model.EndDate', 'DD/MM/YYYY');
 
-        const deptLabels = @Html.Raw(JsonSerializer.Serialize(Model.AppointmentsByDepartment.Keys));
-        const deptData = @Html.Raw(JsonSerializer.Serialize(Model.AppointmentsByDepartment.Values));
-
-        new Chart(document.getElementById('revenueChart'), {
-            type: 'bar',
-            data: {
-                labels: revLabels,
-                datasets: [{
-                    label: 'Doanh thu (VNĐ)',
-                    data: revData,
-                    backgroundColor: 'rgba(13, 110, 253, 0.7)',
-                    borderColor: 'rgba(13, 110, 253, 1)',
-                    borderWidth: 1,
-                    borderRadius: 5
-                }]
+            $('#reportrange').daterangepicker({
+            startDate: start,
+            endDate: end,
+            showDropdowns: true, 
+            linkedCalendars: false,
+            minYear: 2020, 
+            maxYear: parseInt(moment().format('YYYY'), 10) + 1, 
+            ranges: {
+               'Hôm nay': [moment(), moment()],
+               'Hôm qua': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+               '7 ngày qua': [moment().subtract(6, 'days'), moment()],
+               '30 ngày qua': [moment().subtract(29, 'days'), moment()],
+               'Tháng này': [moment().startOf('month'), moment().endOf('month')],
+               'Tháng trước': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
+               'Năm nay': [moment().startOf('year'), moment().endOf('year')], 
+               'Năm trước': [moment().subtract(1, 'year').startOf('year'), moment().subtract(1, 'year').endOf('year')]
             },
-            options: {
-                responsive: true,
+            locale: { 
+                format: 'DD/MM/YYYY', 
+                customRangeLabel: "Tùy chọn",
+                applyLabel: "Áp dụng",
+                cancelLabel: "Đóng",
+                daysOfWeek: ["CN", "T2", "T3", "T4", "T5", "T6", "T7"],
+                monthNames: ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"]
+            }
+        }, function(start, end) {
+            window.location.href = '?startDate=' + start.format('YYYY-MM-DD') + '&endDate=' + end.format('YYYY-MM-DD');
+        });
+        });
+
+        const trendLabels = @Html.Raw(JsonSerializer.Serialize(Model.RevenueByMonth.Keys));
+        const trendData = @Html.Raw(JsonSerializer.Serialize(Model.RevenueByMonth.Values));
+
+        new Chart(document.getElementById('trendChart'), {
+            type: 'line',
+            data: {
+                labels: trendLabels,
+                datasets: [
+                    {
+                        label: 'Doanh thu (VNĐ)',
+                        data: trendData,
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true
+                    }
+                ]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                plugins: { legend: { display: false } },
                 scales: { y: { beginAtZero: true } }
             }
         });
 
-        new Chart(document.getElementById('deptChart'), {
-            type: 'doughnut',
+        const todayHours = @Html.Raw(JsonSerializer.Serialize(Model.TodayHourLabels));
+        const todayRevenues = @Html.Raw(JsonSerializer.Serialize(Model.TodayHourlyRevenue));
+
+        new Chart(document.getElementById('todayHourlyChart'), {
+            type: 'bar',
             data: {
-                labels: deptLabels,
+                labels: todayHours,
                 datasets: [{
-                    data: deptData,
-                    backgroundColor: ['#198754', '#0dcaf0', '#ffc107', '#dc3545', '#6610f2', '#fd7e14', '#20c997']
+                    label: 'Doanh thu (đ)',
+                    data: todayRevenues,
+                    backgroundColor: '#20c997',
+                    borderRadius: 3,
+                    barPercentage: 0.7
                 }]
             },
-            options: { responsive: true, cutout: '60%' }
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } }, 
+                scales: { 
+                    y: { display: true, beginAtZero: true },
+                    x: { ticks: { maxTicksLimit: 12 } }
+                } 
+            }
         });
     </script>
 }
