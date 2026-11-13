@@ -10,7 +10,30 @@ namespace OCMSMVC.Controllers;
 public class AdminController : Controller
 {
     private readonly IAdminManagementService _admin;
-    public AdminController(IAdminManagementService admin) => _admin = admin;
+    private readonly IAnalyticsService _analyticsService;
+    public AdminController(IAdminManagementService admin, IAnalyticsService analyticsService)
+    {
+        _admin = admin; 
+        _analyticsService = analyticsService;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Dashboard(CancellationToken ct)
+    {
+        if (!RequireAdmin()) return Denied();
+
+        var viewModel = new AdminDashboardViewModel
+        {
+            TotalRevenue = await _analyticsService.GetTotalRevenueAsync(ct),
+            TotalPatients = await _analyticsService.GetTotalPatientsAsync(ct),
+            TotalAppointments = await _analyticsService.GetTotalAppointmentsAsync(ct),
+            CancellationRate = await _analyticsService.GetCancellationRateAsync(ct),
+            RevenueByMonth = await _analyticsService.GetRevenueByMonthAsync(ct),
+            AppointmentsByDepartment = await _analyticsService.GetAppointmentsByDepartmentAsync(ct)
+        };
+
+        return View(viewModel);
+    }
 
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken ct)
