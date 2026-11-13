@@ -107,7 +107,15 @@ namespace Services
             if (completeConsultation)
             {
                 await _consultationRepo.UpdateAppointmentStatusAsync(appointmentId, "Completed");
-                return (true, "Đã lưu bệnh án và hoàn thành ca khám!");
+                
+                // Cập nhật trạng thái các đơn thuốc sang "Paid" để chuyển ngay sang hàng chờ Cấp phát thuốc của Lễ tân/Dược
+                var currentRecord = await _consultationRepo.GetMedicalRecordByAppointmentIdAsync(appointmentId);
+                if (currentRecord != null)
+                {
+                    await _consultationRepo.UpdatePrescriptionsStatusByMedicalRecordIdAsync(currentRecord.Id, "Paid");
+                }
+
+                return (true, "Đã hoàn thành ca khám và chuyển đơn thuốc sang bộ phận cấp phát thuốc.");
             }
 
             return (true, "Đã lưu tạm bệnh án!");
@@ -165,6 +173,77 @@ namespace Services
             }
 
             return (true, "Đã hủy chỉ định dịch vụ thành công.");
+        }
+
+        public async Task<List<Medicine>> SearchMedicinesAsync(string? keyword)
+        {
+            return await _consultationRepo.SearchMedicinesAsync(keyword);
+        }
+
+        public async Task<(bool Success, string Message, PrescriptionDetail? Item)> AddPrescriptionItemAsync(
+            int appointmentId, int doctorId, int medicineId, int quantity, string dosageInstruction)
+        {
+            var appt = await _consultationRepo.GetAppointmentDetailAsync(appointmentId);
+            if (appt == null || appt.DoctorId != doctorId)
+            {
+                return (false, "Không tìm thấy thông tin ca khám.", null);
+            }
+
+            if (appt.Status == "Completed")
+            {
+                return (false, "Ca khám đã hoàn thành, không thể thêm thuốc vào đơn.", null);
+            }
+
+            var medicine = await _consultationRepo.GetMedicineByIdAsync(medicineId);
+            if (medicine == null || !medicine.IsAvailable)
+            {
+                return (false, "Thuốc không tồn tại hoặc đã ngừng cung cấp.", null);
+            }
+
+            if (quantity <= 0) quantity = 1;
+
+            var medicalRecord = await _consultationRepo.EnsureMedicalRecordAsync(appointmentId);
+
+            var prescription = new PrescriptionDetail
+            {
+                MedicalRecordId = medicalRecord.Id,
+                MedicineId = medicineId,
+                Quantity = quantity,
+                UnitPrice = medicine.Price,
+                DosageInstruction = string.IsNullOrWhiteSpace(dosageInstruction) ? "Theo chỉ định bác sĩ" : dosageInstruction.Trim(),
+                Status = "Pending"
+            };
+
+            bool added = await _consultationRepo.AddPrescriptionDetailAsync(prescription);
+            if (!added)
+            {
+                return (false, "Không thể thêm thuốc vào đơn thuốc.", null);
+            }
+
+            prescription.Medicine = medicine;
+            return (true, $"Đã thêm {medicine.Name} ({quantity} {medicine.Unit}) vào đơn thuốc.", prescription);
+        }
+
+        public async Task<(bool Success, string Message)> DeletePrescriptionItemAsync(int appointmentId, int doctorId, int prescriptionDetailId)
+        {
+            var appt = await _consultationRepo.GetAppointmentDetailAsync(appointmentId);
+            if (appt == null || appt.DoctorId != doctorId)
+            {
+                return (false, "Không tìm thấy thông tin ca khám.");
+            }
+
+            if (appt.Status == "Completed")
+            {
+                return (false, "Ca khám đã hoàn thành, không thể xóa thuốc khỏi đơn.");
+            }
+
+            bool deleted = await _consultationRepo.DeletePrescriptionDetailAsync(prescriptionDetailId);
+            if (!deleted)
+            {
+                return (false, "Không thể xóa thuốc khỏi đơn.");
+            }
+
+            return (true, "Đã xóa thuốc khỏi đơn thuốc.");
         }
     }
 }

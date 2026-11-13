@@ -278,6 +278,30 @@ namespace OCMSMVC.Controllers
                     Name = s.Name,
                     Price = s.Price,
                     DepartmentName = s.Department?.Name
+                }).ToList(),
+
+                // Đơn thuốc điều trị
+                Prescriptions = appt.MedicalRecord?.PrescriptionDetails.Select(pd => new PrescriptionItemViewModel
+                {
+                    PrescriptionDetailId = pd.Id,
+                    MedicineId = pd.MedicineId,
+                    MedicineName = pd.Medicine?.Name ?? "Thuốc",
+                    Unit = pd.Medicine?.Unit ?? "Viên",
+                    UnitPrice = pd.UnitPrice,
+                    Quantity = pd.Quantity,
+                    DosageInstruction = pd.DosageInstruction,
+                    Status = pd.Status
+                }).OrderBy(p => p.PrescriptionDetailId).ToList() ?? new List<PrescriptionItemViewModel>(),
+
+                // Danh mục thuốc trong DB để bác sĩ chọn nhanh
+                AvailableMedicines = (await _consultationService.SearchMedicinesAsync(null)).Select(m => new MedicineOptionViewModel
+                {
+                    MedicineId = m.Id,
+                    Name = m.Name,
+                    Unit = m.Unit,
+                    Price = m.Price,
+                    StockQuantity = m.StockQuantity,
+                    Description = m.Description
                 }).ToList()
             };
 
@@ -396,6 +420,121 @@ namespace OCMSMVC.Controllers
             }
 
             var result = await _consultationService.DeleteServiceOrderAsync(serviceOrderId, doctorId);
+            if (result.Success)
+            {
+                TempData["SuccessMessage"] = result.Message;
+            }
+            else
+            {
+                TempData["ErrorMessage"] = result.Message;
+            }
+
+            return RedirectToAction(nameof(Examine), new { id = appointmentId });
+        }
+
+        // 7. Tìm kiếm thuốc từ DB
+        [HttpGet]
+        public async Task<IActionResult> SearchMedicines(string? term)
+        {
+            var (isDoctor, _, _) = await GetCurrentDoctorAsync();
+            if (!isDoctor)
+            {
+                return Unauthorized();
+            }
+
+            var medicines = await _consultationService.SearchMedicinesAsync(term);
+            var results = medicines.Select(m => new
+            {
+                id = m.Id,
+                name = m.Name,
+                unit = m.Unit,
+                price = m.Price,
+                priceDisplay = m.Price.ToString("N0") + " đ",
+                stock = m.StockQuantity,
+                description = m.Description ?? ""
+            });
+
+            return Json(results);
+        }
+
+        // 8. Thêm thuốc vào đơn thuốc
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddPrescriptionItem(int appointmentId, int medicineId, int quantity, string? dosageInstruction)
+        {
+            var (isDoctor, doctorId, _) = await GetCurrentDoctorAsync();
+            if (!isDoctor)
+            {
+                return Unauthorized();
+            }
+
+            var result = await _consultationService.AddPrescriptionItemAsync(
+                appointmentId, doctorId, medicineId, quantity, dosageInstruction ?? string.Empty);
+
+            bool isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest" ||
+                          Request.Headers["Accept"].ToString().Contains("application/json");
+
+            if (isAjax)
+            {
+                if (!result.Success || result.Item == null)
+                {
+                    return Json(new { success = false, message = result.Message });
+                }
+
+                return Json(new
+                {
+                    success = true,
+                    message = result.Message,
+                    item = new
+                    {
+                        prescriptionDetailId = result.Item.Id,
+                        medicineId = result.Item.MedicineId,
+                        medicineName = result.Item.Medicine?.Name ?? "Thuốc",
+                        unit = result.Item.Medicine?.Unit ?? "Viên",
+                        unitPrice = result.Item.UnitPrice,
+                        unitPriceDisplay = result.Item.UnitPrice.ToString("N0") + " đ",
+                        quantity = result.Item.Quantity,
+                        totalPrice = result.Item.Quantity * result.Item.UnitPrice,
+                        totalPriceDisplay = (result.Item.Quantity * result.Item.UnitPrice).ToString("N0") + " đ",
+                        dosageInstruction = result.Item.DosageInstruction
+                    }
+                });
+            }
+
+            if (result.Success)
+            {
+                TempData["SuccessMessage"] = result.Message;
+            }
+            else
+            {
+                TempData["ErrorMessage"] = result.Message;
+            }
+
+            return RedirectToAction(nameof(Examine), new { id = appointmentId });
+        }
+
+        // 9. Xóa thuốc khỏi đơn thuốc
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeletePrescriptionItem(int appointmentId, int prescriptionDetailId)
+        {
+            var (isDoctor, doctorId, _) = await GetCurrentDoctorAsync();
+            if (!isDoctor)
+            {
+                return Unauthorized();
+            }
+
+            var result = await _consultationService.DeletePrescriptionItemAsync(
+                appointmentId, doctorId, prescriptionDetailId);
+
+            bool isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest" ||
+                          Request.Headers["Accept"].ToString().Contains("application/json");
+
+            if (isAjax)
+            {
+                return Json(new { success = result.Success, message = result.Message });
+            }
+
             if (result.Success)
             {
                 TempData["SuccessMessage"] = result.Message;

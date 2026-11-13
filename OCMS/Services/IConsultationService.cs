@@ -40,6 +40,11 @@ namespace Services
 
         // 9. Bắt đầu ca khám (chuyển sang InConsultation)
         Task<(bool Success, string Message)> StartConsultationAsync(int appointmentId, int doctorId);
+
+        // 10. Tìm kiếm thuốc & Kê đơn thuốc
+        Task<List<Medicine>> SearchMedicinesAsync(string? keyword);
+        Task<(bool Success, string Message, PrescriptionDetail? Item)> AddPrescriptionItemAsync(int appointmentId, int doctorId, int medicineId, int quantity, string dosageInstruction);
+        Task<(bool Success, string Message)> DeletePrescriptionItemAsync(int appointmentId, int doctorId, int prescriptionDetailId);
     }
 }
 
