@@ -75,12 +75,15 @@
                             </li>
                         }
 
-                        <!-- 4. Đội ngũ Bác sĩ & Biểu phí (Công khai) -->
-                        <li class="nav-item">
-                            <a class="nav-link text-white fw-medium" asp-controller="Doctor" asp-action="Index">
-                                <i class="bi bi-people me-1"></i>Đội ngũ Bác sĩ
-                            </a>
-                        </li>
+                        <!-- 4. Đội ngũ Bác sĩ & Biểu phí (Ẩn đối với Lễ tân Staff) -->
+                        @if (!isStaff)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-white fw-medium" asp-controller="Doctor" asp-action="Index">
+                                    <i class="bi bi-people me-1"></i>Đội ngũ Bác sĩ
+                                </a>
+                            </li>
+                        }
 
                         <!-- 5. Màn hình TV Sảnh Chờ (Màn hình công cộng tại sảnh phòng khám) -->
                         <li class="nav-item">
@@ -171,18 +174,7 @@
                                     </li>
                                 </ul>
                             </li>
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle text-white fw-medium" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="bi bi-hospital me-1"></i>Vận hành & Giám sát
-                                </a>
-                                <ul class="dropdown-menu shadow border-0">
-                                    <li><a class="dropdown-item py-2" asp-controller="Reception" asp-action="CheckIn"><i class="bi bi-qr-code-scan me-2 text-primary"></i>Cổng tiếp đón & Quét QR</a></li>
-                                    <li><a class="dropdown-item py-2" asp-controller="Reception" asp-action="WalkIn"><i class="bi bi-person-plus me-2 text-warning"></i>Đăng ký vãng lai</a></li>
-                                    <li><a class="dropdown-item py-2" asp-controller="Queue" asp-action="Dispatch"><i class="bi bi-broadcast me-2 text-info"></i>Bảng gọi số khám</a></li>
-                                    <li><a class="dropdown-item py-2" asp-controller="Billing" asp-action="Index"><i class="bi bi-cash-stack me-2 text-success"></i>Quầy thu ngân</a></li>
-                                    <li><a class="dropdown-item py-2" asp-controller="Pharmacy" asp-action="Index"><i class="bi bi-capsule me-2 text-danger"></i>Nhà thuốc phòng khám</a></li>
-                                </ul>
-                            </li>
+
                         }
                     </ul>
 
