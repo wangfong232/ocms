@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Repositories;
 using Services;
 using OCMSMVC.Workers;
+using OCMSMVC.Hubs;
 
 namespace OCMSMVC
 {
@@ -15,6 +16,7 @@ namespace OCMSMVC
 
             // 1. Đăng ký Controllers & Views
             builder.Services.AddControllersWithViews();
+            builder.Services.AddSignalR(); // PRN222 - Chapter 7: SignalR Real-Time Communication
             builder.Services.AddHttpContextAccessor();
             builder.Services.AddDbContext<OcmsDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -108,6 +110,9 @@ namespace OCMSMVC
             });
             app.UseAuthentication();
             app.UseAuthorization();
+
+            // PRN222 - Chapter 7: Endpoint định tuyến cho SignalR Hub
+            app.MapHub<QueueHub>("/queueHub");
 
             app.MapControllerRoute(
                 name: "default",

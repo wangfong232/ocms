@@ -16,9 +16,10 @@ namespace OCMSMVC.Models
         public string? HealthInsuranceNumber { get; set; }
         public string TimeSlotDisplay { get; set; } = string.Empty;
         public string? Reason { get; set; }
-        public string Status { get; set; } = "Confirmed";
+        public string Status { get; set; } = "Arrived";
         public bool HasVitalSigns { get; set; }
         public bool HasMedicalRecord { get; set; }
+        public bool IsNextInLine { get; set; }
     }
 
     // 2. ViewModel bàn khám bệnh (Workspace)
@@ -107,6 +108,41 @@ namespace OCMSMVC.Models
         public string Name { get; set; } = string.Empty;
         public decimal Price { get; set; }
         public string? DepartmentName { get; set; }
+    }
+
+    public class PatientPreviewViewModel
+    {
+        public int AppointmentId { get; set; }
+        public int? QueueNumber { get; set; }
+        public string TimeSlotDisplay { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string? Reason { get; set; }
+
+        public int PatientId { get; set; }
+        public string PatientName { get; set; } = string.Empty;
+        public string Gender { get; set; } = string.Empty;
+        public DateTime DateOfBirth { get; set; }
+        public int Age => DateTime.Today.Year - DateOfBirth.Year;
+        public string? Address { get; set; }
+        public string? HealthInsuranceNumber { get; set; }
+        public string PhoneNumber { get; set; } = string.Empty;
+
+        // Sinh hiệu
+        public bool HasVitalSigns { get; set; }
+        public int SystolicBP { get; set; }
+        public int DiastolicBP { get; set; }
+        public int Pulse { get; set; }
+        public decimal Temperature { get; set; }
+        public int SpO2 { get; set; }
+        public decimal Weight { get; set; }
+        public decimal Height { get; set; }
+        public decimal BMI => (Height > 0) ? Math.Round(Weight / ((Height / 100) * (Height / 100)), 1) : 0;
+
+        // Tiền sử khám cũ
+        public List<PastMedicalHistoryItemViewModel> PastHistory { get; set; } = new List<PastMedicalHistoryItemViewModel>();
+
+        public bool CanCallNow { get; set; }
+        public string? BlockReason { get; set; }
     }
 }
 

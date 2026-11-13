@@ -112,6 +112,9 @@
 @Html.AntiForgeryToken()
 
 @section Scripts {
+<!-- PRN222 - Chapter 7: SignalR Client -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+
 <script>
     function getToken() {
         return document.querySelector('input[name="__RequestVerificationToken"]').value;
@@ -123,6 +126,19 @@
         document.getElementById('alertMessage').innerText = msg;
         box.style.display = 'block';
     }
+
+    // PRN222 - Chapter 7: Kết nối SignalR Hub để tự động làm mới khi có ca check-in mới
+    const dispatchConnection = new signalR.HubConnectionBuilder()
+        .withUrl("/queueHub")
+        .withAutomaticReconnect()
+        .build();
+
+    dispatchConnection.on("QueueUpdated", function () {
+        // Tự động làm mới danh sách chờ sau khi hàng đợi có sự thay đổi
+        setTimeout(() => location.reload(), 600);
+    });
+
+    dispatchConnection.start().catch(err => console.debug("SignalR dispatch fallback:", err));
 
     // 1. Gọi bệnh nhân vào khám
     function callPatient(appointmentId) {
@@ -138,7 +154,6 @@
         .then(data => {
             if (data.success) {
                 showAlert(`Đã gọi số #${data.queueNumber} (${data.patientName}) vào phòng ${data.roomNumber}!`);
-                setTimeout(() => location.reload(), 1000);
             } else {
                 showAlert(data.message, false);
             }
@@ -162,7 +177,6 @@
         .then(data => {
             if (data.success) {
                 showAlert("Đã hoàn tất ca khám!");
-                setTimeout(() => location.reload(), 800);
             } else {
                 showAlert(data.message, false);
             }

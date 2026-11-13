@@ -27,8 +27,14 @@ namespace Repositories
                 .Include(a => a.MedicalRecord)
                 .Where(a => a.DoctorId == doctorId 
                          && a.AppointmentDate.Date == date.Date 
-                         && a.Status != "Cancelled")
-                .OrderBy(a => a.TimeSlot.StartTime)
+                         && a.Status != "Cancelled"
+                         && (
+                             (a.Status == "Arrived" && a.QueueNumber.HasValue) ||
+                             a.Status == "InConsultation" ||
+                             a.Status == "Completed"
+                         ))
+                .OrderBy(a => a.QueueNumber ?? 999)
+                .ThenBy(a => a.TimeSlot.StartTime)
                 .ToListAsync();
         }
 

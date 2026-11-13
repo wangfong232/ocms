@@ -48,11 +48,24 @@ namespace Services
                 return (false, "Không tìm thấy lịch hẹn hoặc bạn không phụ trách ca này.");
             }
 
-            if (appt.Status == "Confirmed" || appt.Status == "Arrived")
+            // Nếu ca này đã ở trạng thái InConsultation hoặc Completed thì cho phép vào tiếp tục/xem lại
+            if (appt.Status == "InConsultation" || appt.Status == "Completed")
             {
-                await _consultationRepo.UpdateAppointmentStatusAsync(appointmentId, "InConsultation");
+                return (true, "Vào ca khám.");
             }
 
+            // Kiểm tra xem bác sĩ có đang khám dở bệnh nhân nào khác không (1 phòng khám chỉ khám 1 người tại một thời điểm)
+            var todayApts = await _consultationRepo.GetTodayAppointmentsByDoctorIdAsync(doctorId, DateTime.Today);
+            var activeConsultation = todayApts.FirstOrDefault(a => a.Status == "InConsultation" && a.Id != appointmentId);
+            if (activeConsultation != null)
+            {
+                var patientName = activeConsultation.Patient?.User?.FullName ?? "bệnh nhân khác";
+                var queueNum = activeConsultation.QueueNumber.HasValue ? $"#{activeConsultation.QueueNumber}" : "";
+                return (false, $"Bác sĩ đang khám cho {patientName} ({queueNum}). Vui lòng hoàn thành ca khám hiện tại trước khi gọi bệnh nhân tiếp theo!");
+            }
+
+            // Cập nhật trạng thái lịch hẹn sang InConsultation
+            await _consultationRepo.UpdateAppointmentStatusAsync(appointmentId, "InConsultation");
             return (true, "Đã bắt đầu ca khám.");
         }
 
