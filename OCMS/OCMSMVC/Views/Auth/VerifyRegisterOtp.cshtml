@@ -11,14 +11,6 @@
                 <small class="text-white-50">Nhập mã OTP 6 chữ số đã được gửi qua email</small>
             </div>
             <div class="card-body p-4">
-                @if (TempData["InfoMessage"] != null)
-                {
-                    <div class="alert alert-info alert-dismissible fade show" role="alert">
-                        <i class="bi bi-info-circle-fill me-2"></i>@TempData["InfoMessage"]
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                }
-
                 <form asp-action="VerifyRegisterOtp" method="post">
                     @Html.AntiForgeryToken()
                     <input type="hidden" asp-for="Email" />

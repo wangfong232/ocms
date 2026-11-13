@@ -80,6 +80,7 @@ namespace OCMSMVC.Models
 
         public string PatientName { get; set; } = string.Empty;
         public string PatientPhone { get; set; } = string.Empty;
+        public string PatientEmail { get; set; } = string.Empty;
 
         [MaxLength(500, ErrorMessage = "Lý do khám không được vượt quá 500 ký tự.")]
         public string? Reason { get; set; }
@@ -89,6 +90,10 @@ namespace OCMSMVC.Models
     {
         [Required]
         public int SlotId { get; set; }
+
+        [Required(ErrorMessage = "Vui lòng nhập email nhận vé khám.")]
+        [EmailAddress(ErrorMessage = "Email không hợp lệ.")]
+        public string Email { get; set; } = string.Empty;
 
         [MaxLength(500)]
         public string? Reason { get; set; }

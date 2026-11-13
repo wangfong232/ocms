@@ -10,10 +10,19 @@ namespace OCMSMVC.Controllers
     {
         private readonly IAppointmentService appointmentService;
         private readonly ICapacityEngine capacityEngine;
-        public AppointmentController(IAppointmentService appointmentService, ICapacityEngine capacityEngine)
+        private readonly IEmailService emailService;
+        private readonly ILogger<AppointmentController> logger;
+
+        public AppointmentController(
+            IAppointmentService appointmentService,
+            ICapacityEngine capacityEngine,
+            IEmailService emailService,
+            ILogger<AppointmentController> logger)
         {
             this.appointmentService = appointmentService;
             this.capacityEngine = capacityEngine;
+            this.emailService = emailService;
+            this.logger = logger;
         }
 
         [HttpGet]
@@ -82,11 +91,76 @@ namespace OCMSMVC.Controllers
                 return RedirectToAction("MyAppointments");
             }
 
+            var apptBefore = await appointmentService.GetAppointmentDetailsAsync(model.AppointmentId, userId.Value);
             var (success, message, isRefunded) = await appointmentService.CancelAppointmentAsync(model.AppointmentId, userId.Value, model.CancellationReason);
 
             if (success)
             {
                 TempData["SuccessMessage"] = message;
+
+                // Gửi email xác nhận hủy lịch khám
+                if (apptBefore != null)
+                {
+                    var recipientEmail = apptBefore.Patient?.User?.Email ?? HttpContext.Session.GetString("Email");
+                    if (!string.IsNullOrWhiteSpace(recipientEmail) &&
+                        !recipientEmail.EndsWith("@ocms.clinic", StringComparison.OrdinalIgnoreCase) &&
+                        !recipientEmail.EndsWith("@ocms.local", StringComparison.OrdinalIgnoreCase))
+                    {
+                        try
+                        {
+                            string subject = $"[OCMS Clinic] Xác nhận hủy lịch khám - Mã: #{apptBefore.Id}";
+                            string patientName = apptBefore.Patient?.User?.FullName ?? "Quý khách";
+                            string doctorTitle = apptBefore.Doctor?.AcademicTitle ?? "BS.";
+                            string doctorName = apptBefore.Doctor?.User?.FullName ?? "Bác sĩ";
+                            string deptName = apptBefore.Doctor?.Department?.Name ?? "Đa khoa";
+                            string dateStr = apptBefore.AppointmentDate.ToString("dd/MM/yyyy");
+                            string timeStr = apptBefore.TimeSlot != null ? $"{apptBefore.TimeSlot.StartTime.ToString(@"hh\:mm")} - {apptBefore.TimeSlot.EndTime.ToString(@"hh\:mm")}" : "";
+                            string refundNotice = isRefunded
+                                ? "Lịch khám được hủy trước 24 giờ. Quý khách được hoàn lại 100% tiền đặt cọc theo quy định."
+                                : "Lịch khám được hủy dưới 24 giờ trước giờ hẹn. Tiền đặt cọc không được hoàn lại theo quy định.";
+
+                            string reasonNotice = !string.IsNullOrWhiteSpace(model.CancellationReason)
+                                ? $"<p style='margin: 5px 0;'><strong>Lý do hủy:</strong> {model.CancellationReason}</p>"
+                                : "";
+
+                            string body = $@"
+                            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 10px; overflow: hidden;'>
+                                <div style='background-color: #dc3545; color: white; padding: 20px; text-align: center;'>
+                                    <h2 style='margin: 0;'>PHÒNG KHÁM NGOẠI TRÚ OCMS</h2>
+                                    <p style='margin: 5px 0 0; opacity: 0.9;'>Xác nhận hủy lịch hẹn khám bệnh</p>
+                                </div>
+                                <div style='padding: 25px;'>
+                                    <p>Kính gửi <strong>{patientName}</strong>,</p>
+                                    <p>Hệ thống OCMS Clinic đã tiếp nhận và xác nhận việc hủy lịch hẹn khám của bạn như sau:</p>
+                                    
+                                    <div style='background-color: #f8f9fa; border-left: 4px solid #dc3545; padding: 15px; margin: 20px 0;'>
+                                        <p style='margin: 5px 0;'><strong>Mã lịch hẹn:</strong> #{apptBefore.Id}</p>
+                                        <p style='margin: 5px 0;'><strong>Bác sĩ:</strong> {doctorTitle} {doctorName}</p>
+                                        <p style='margin: 5px 0;'><strong>Chuyên khoa:</strong> {deptName}</p>
+                                        <p style='margin: 5px 0;'><strong>Ngày khám:</strong> {dateStr}</p>
+                                        <p style='margin: 5px 0;'><strong>Khung giờ:</strong> {timeStr}</p>
+                                        {reasonNotice}
+                                    </div>
+
+                                    <div style='background-color: {(isRefunded ? "#d1e7dd" : "#fff3cd")}; border: 1px solid {(isRefunded ? "#badbcc" : "#ffeeba")}; color: {(isRefunded ? "#0f5132" : "#856404")}; padding: 12px; border-radius: 6px; margin-bottom: 20px;'>
+                                        <strong>Chính sách hoàn tiền:</strong> {refundNotice}
+                                    </div>
+
+                                    <p style='color: #6c757d; font-size: 13px; text-align: center; margin-top: 30px;'>
+                                        Cảm ơn quý khách đã tin tưởng OCMS Clinic &bull; Hotline: 1900 8888 &bull; Email hỗ trợ: hams.ocms.noreply@gmail.com
+                                    </p>
+                                </div>
+                            </div>";
+
+                            await emailService.SendEmailAsync(recipientEmail.Trim(), subject, body);
+                            logger.LogInformation($"[CANCEL EMAIL SUCCESS] Đã gửi email xác nhận hủy lịch #{apptBefore.Id} tới {recipientEmail}");
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogError(ex, $"[CANCEL EMAIL ERROR] Lỗi khi gửi email hủy lịch #{apptBefore.Id}: {ex.Message}");
+                        }
+                    }
+                }
             }
             else
             {
@@ -190,6 +264,76 @@ namespace OCMSMVC.Controllers
             if (success)
             {
                 TempData["SuccessMessage"] = message;
+
+                // Gửi email xác nhận đổi lịch hẹn (kèm vé khám và mã QR mới)
+                var updatedAppt = await appointmentService.GetAppointmentDetailsAsync(model.AppointmentId, userId.Value);
+                if (updatedAppt != null)
+                {
+                    var recipientEmail = updatedAppt.Patient?.User?.Email ?? HttpContext.Session.GetString("Email");
+                    if (!string.IsNullOrWhiteSpace(recipientEmail) &&
+                        !recipientEmail.EndsWith("@ocms.clinic", StringComparison.OrdinalIgnoreCase) &&
+                        !recipientEmail.EndsWith("@ocms.local", StringComparison.OrdinalIgnoreCase))
+                    {
+                        try
+                        {
+                            string qrToken = updatedAppt.QrCodeToken ?? $"APT-{updatedAppt.Id}";
+                            string qrImageUrl = $"https://api.qrserver.com/v1/create-qr-code/?size=180x180&data={qrToken}";
+                            string subject = $"[OCMS Clinic] Cập nhật lịch hẹn khám (Đổi lịch mới) - Mã: {qrToken}";
+                            string patientName = updatedAppt.Patient?.User?.FullName ?? "Quý khách";
+                            string doctorTitle = updatedAppt.Doctor?.AcademicTitle ?? "BS.";
+                            string doctorName = updatedAppt.Doctor?.User?.FullName ?? "Bác sĩ";
+                            string deptName = updatedAppt.Doctor?.Department?.Name ?? "Đa khoa";
+                            string roomNumber = updatedAppt.TimeSlot?.DoctorSchedule?.Room?.RoomNumber ?? "101";
+                            string dateStr = updatedAppt.AppointmentDate.ToString("dd/MM/yyyy");
+                            string startTimeStr = updatedAppt.TimeSlot != null ? updatedAppt.TimeSlot.StartTime.ToString(@"hh\:mm") : "08:00";
+                            string endTimeStr = updatedAppt.TimeSlot != null ? updatedAppt.TimeSlot.EndTime.ToString(@"hh\:mm") : "08:15";
+
+                            string body = $@"
+                            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 10px; overflow: hidden;'>
+                                <div style='background-color: #0d6efd; color: white; padding: 20px; text-align: center;'>
+                                    <h2 style='margin: 0;'>PHÒNG KHÁM NGOẠI TRÚ OCMS</h2>
+                                    <p style='margin: 5px 0 0; opacity: 0.9;'>Vé khám bệnh điện tử (E-Ticket) - ĐÃ CẬP NHẬT ĐỔI LỊCH</p>
+                                </div>
+                                <div style='padding: 25px;'>
+                                    <p>Kính gửi <strong>{patientName}</strong>,</p>
+                                    <p>Lịch hẹn khám của bạn đã được <strong>đổi sang khung giờ mới thành công</strong> trên hệ thống OCMS Clinic.</p>
+                                    
+                                    <div style='text-align: center; margin: 20px 0; padding: 15px; background-color: #f8f9fa; border: 1px dashed #0d6efd; border-radius: 8px;'>
+                                        <p style='margin: 0 0 10px; font-weight: bold; color: #0d6efd; font-size: 14px;'>MÃ VÉ KHÁM MỚI & QUÉT QR CHECK-IN</p>
+                                        <img src='{qrImageUrl}' alt='Mã QR Vé Khám' width='160' height='160' style='display: block; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 6px; padding: 5px; background: #fff;' />
+                                        <p style='margin: 8px 0 0; font-family: monospace; font-size: 16px; font-weight: bold; color: #0d6efd;'>{qrToken}</p>
+                                        <small style='color: #6c757d; font-size: 12px;'>Quý khách xuất trình mã QR này tại Quầy tiếp đón để làm thủ tục vào phòng khám</small>
+                                    </div>
+
+                                    <div style='background-color: #f8f9fa; border-left: 4px solid #0d6efd; padding: 15px; margin: 20px 0;'>
+                                        <p style='margin: 5px 0;'><strong>Mã vé khám:</strong> <span style='font-size: 16px; color: #0d6efd; font-weight: bold;'>{qrToken}</span></p>
+                                        <p style='margin: 5px 0;'><strong>Bác sĩ khám:</strong> {doctorTitle} {doctorName}</p>
+                                        <p style='margin: 5px 0;'><strong>Chuyên khoa:</strong> {deptName}</p>
+                                        <p style='margin: 5px 0;'><strong>Phòng khám:</strong> Phòng {roomNumber}</p>
+                                        <p style='margin: 5px 0;'><strong>Ngày khám mới:</strong> <strong style='color: #0d6efd;'>{dateStr}</strong></p>
+                                        <p style='margin: 5px 0;'><strong>Khung giờ hẹn mới:</strong> <strong style='color: #198754;'>{startTimeStr} - {endTimeStr}</strong></p>
+                                    </div>
+
+                                    <div style='background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 12px; border-radius: 6px; margin-bottom: 20px;'>
+                                        <strong>Lưu ý:</strong> Quý khách đã sử dụng quyền đổi lịch 1 lần duy nhất cho lịch hẹn này. Vui lòng có mặt trước giờ hẹn 15 phút tại Quầy tiếp đón.
+                                    </div>
+
+                                    <p style='color: #6c757d; font-size: 13px; text-align: center; margin-top: 30px;'>
+                                        Hệ thống Phòng Khám Đa Khoa OCMS &bull; Hotline: 1900 8888 &bull; Email hỗ trợ: hams.ocms.noreply@gmail.com
+                                    </p>
+                                </div>
+                            </div>";
+
+                            await emailService.SendEmailAsync(recipientEmail.Trim(), subject, body);
+                            logger.LogInformation($"[RESCHEDULE EMAIL SUCCESS] Đã gửi email đổi lịch #{updatedAppt.Id} tới {recipientEmail}");
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogError(ex, $"[RESCHEDULE EMAIL ERROR] Lỗi khi gửi email đổi lịch #{updatedAppt.Id}: {ex.Message}");
+                        }
+                    }
+                }
+
                 return RedirectToAction("MyAppointments");
             }
             TempData["ErrorMessage"] = message;

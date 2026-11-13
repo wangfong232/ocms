@@ -154,8 +154,27 @@ namespace DataAccessObjects
                         IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'TimeSlots' AND COLUMN_NAME = 'HoldExpiresAt')
                             ALTER TABLE TimeSlots ADD HoldExpiresAt DATETIME2 NULL;
 
-                        -- Tự động giải phóng toàn bộ các slot cũ bị kẹt trạng thái 'Hold' từ trước khi có cột HoldExpiresAt
+                        -- Tự động giải phóng toàn bộ các slot cũ bị kẹt trạng thái 'Hold'
                         UPDATE TimeSlots SET Status = 'Open', HoldExpiresAt = NULL WHERE Status = 'Hold' AND HoldExpiresAt IS NULL;
+                    END
+                    """,
+
+                    // Auto-clean overdue appointments (Lịch hẹn quá hạn)
+                    """
+                    IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'Appointments')
+                    BEGIN
+                        -- Chuyển các ca khám ngày cũ còn dở dang sang Đã hoàn thành (Completed)
+                        UPDATE Appointments
+                        SET Status = 'Completed'
+                        WHERE CAST(AppointmentDate AS DATE) < CAST(GETDATE() AS DATE)
+                          AND Status = 'InConsultation';
+
+                        -- Chuyển các lịch hẹn ngày cũ chưa khám hoặc vắng mặt sang NoShow (Bỏ khám)
+                        UPDATE Appointments
+                        SET Status = 'NoShow',
+                            CancellationReason = COALESCE(CancellationReason, N'Quá ngày hẹn - Bệnh nhân không đến khám')
+                        WHERE CAST(AppointmentDate AS DATE) < CAST(GETDATE() AS DATE)
+                          AND Status IN ('Confirmed', 'Pending', 'Arrived');
                     END
                     """
                 };

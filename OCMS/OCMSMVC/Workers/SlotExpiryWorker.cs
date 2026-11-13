@@ -108,6 +108,46 @@ namespace OCMSMVC.Workers
                                 }, cancellationToken: stoppingToken);
                             }
                         }
+
+                        // 3. Tự động xử lý các lịch hẹn trong quá khứ (đã qua ngày khám)
+                        var today = DateTime.Today;
+                        // a) Ca khám dở dang của ngày hôm trước -> Hoàn thành (Completed)
+                        var overdueConsultations = await dbContext.Appointments
+                            .Where(a => a.AppointmentDate.Date < today && a.Status == "InConsultation")
+                            .ToListAsync(stoppingToken);
+
+                        if (overdueConsultations.Any())
+                        {
+                            foreach (var appt in overdueConsultations)
+                            {
+                                appt.Status = "Completed";
+                                _logger.LogInformation($"[AUTO COMPLETE] Chuyển lịch hẹn ID {appt.Id} (ngày {appt.AppointmentDate:dd/MM/yyyy}) sang 'Completed'.");
+                            }
+                            await dbContext.SaveChangesAsync(stoppingToken);
+                        }
+
+                        // b) Lịch hẹn ngày cũ hoặc hôm nay đã quá giờ khám > 60 phút mà bệnh nhân không đến -> Vắng mặt (NoShow)
+                        var currentTime = DateTime.Now.TimeOfDay;
+                        var overdueAppointments = await dbContext.Appointments
+                            .Include(a => a.TimeSlot)
+                            .Where(a => (a.Status == "Confirmed" || a.Status == "Pending" || a.Status == "Arrived") &&
+                                        (a.AppointmentDate.Date < today ||
+                                         (a.AppointmentDate.Date == today && a.TimeSlot != null && currentTime > a.TimeSlot.EndTime.Add(TimeSpan.FromMinutes(60)))))
+                            .ToListAsync(stoppingToken);
+
+                        if (overdueAppointments.Any())
+                        {
+                            foreach (var appt in overdueAppointments)
+                            {
+                                appt.Status = "NoShow";
+                                if (string.IsNullOrWhiteSpace(appt.CancellationReason))
+                                {
+                                    appt.CancellationReason = "Quá giờ hẹn - Bệnh nhân không đến khám (Vắng mặt)";
+                                }
+                                _logger.LogInformation($"[AUTO NOSHOW] Chuyển lịch hẹn ID {appt.Id} (ngày {appt.AppointmentDate:dd/MM/yyyy}) sang 'NoShow'.");
+                            }
+                            await dbContext.SaveChangesAsync(stoppingToken);
+                        }
                     }
                 }
                 catch (Exception ex)

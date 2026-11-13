@@ -32,7 +32,7 @@
                         <hr class="my-2">
                         <div class="d-flex justify-content-between align-items-center">
                             <span>Phí khám dự kiến:</span>
-                            <span class="fw-bold text-danger">@Model.ConsultationFee.ToString() VNĐ</span>
+                            <span class="fw-bold text-danger">@Model.ConsultationFee.ToString("N0") VNĐ</span>
                         </div>
                     </div>
                 </div>
@@ -52,6 +52,17 @@
                     <input type="text" class="form-control bg-light" value="@Model.PatientPhone" readonly />
                 </div>
 
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Email nhận vé khám điện tử (E-Ticket) <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="bi bi-envelope text-primary"></i></span>
+                        <input type="email" name="Email" class="form-control" value="@Model.PatientEmail" placeholder="Nhập email của bạn (ví dụ: tranquangphong232@gmail.com)" required />
+                    </div>
+                    <small class="text-primary mt-1 d-block">
+                        <i class="bi bi-info-circle me-1"></i>Vui lòng nhập chính xác địa chỉ email cá nhân (Gmail, Outlook...) để nhận vé khám E-Ticket và mã QR.
+                    </small>
+                </div>
+
                 <div class="mb-4">
                     <label class="form-label fw-semibold">Lý do khám / Triệu chứng sơ bộ</label>
                     <textarea name="Reason" class="form-control" rows="3" placeholder="Ví dụ: Đau đầu kéo dài 3 ngày, sốt nhẹ về chiều..."></textarea>
@@ -63,7 +74,7 @@
                         <i class="bi bi-arrow-left"></i> Đổi khung giờ khác
                     </a>
                     <button type="submit" class="btn btn-success fw-bold px-4 py-2">
-                        <i class="bi bi-check2-circle me-1"></i> Xác nhận & Đi tới thanh toán
+                        <i class="bi bi-check2-circle me-1"></i> Xác nhận đặt lịch khám
                     </button>
                 </div>
             </form>
