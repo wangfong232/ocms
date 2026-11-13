@@ -1,0 +1,72 @@
+﻿@model OCMSMVC.Models.BookingConfirmViewModel
+@{
+    ViewData["Title"] = "Xác Nhận Đặt Lịch Khám";
+}
+
+<div class="container py-4" style="max-width: 800px;">
+    <div class="card border-1 rounded-3">
+        <div class="card-header bg-primary text-white py-3">
+            <h4 class="fw-bold mb-0">Phiếu Xác Nhận Đặt Lịch Khám</h4>
+        </div>
+        <div class="card-body p-4">
+            
+            <div class="alert alert-light border mb-4">
+                <div class="row g-3">
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Bác sĩ phụ trách:</small>
+                        <strong class="text-primary">@Model.AcademicTitle @Model.DoctorName</strong>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Chuyên khoa / Phòng:</small>
+                        <strong>@Model.DepartmentName (Phòng @Model.RoomNumber)</strong>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Ngày khám:</small>
+                        <strong class="text-dark">@Model.AppointmentDate.ToString("dd/MM/yyyy")</strong>
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Khung giờ hẹn:</small>
+                        <span class="badge bg-success">@Model.StartTime.ToString(@"hh\:mm") - @Model.EndTime.ToString(@"hh\:mm")</span>
+                    </div>
+                    <div class="col-12">
+                        <hr class="my-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>Phí khám dự kiến:</span>
+                            <span class="fw-bold text-danger">@Model.ConsultationFee.ToString() VNĐ</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+           
+            <form method="post" asp-action="ConfirmBooking">
+                <input type="hidden" name="SlotId" value="@Model.SlotId" />
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Họ và tên người khám</label>
+                    <input type="text" class="form-control bg-light" value="@Model.PatientName" readonly />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Số điện thoại liên hệ</label>
+                    <input type="text" class="form-control bg-light" value="@Model.PatientPhone" readonly />
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Lý do khám / Triệu chứng sơ bộ</label>
+                    <textarea name="Reason" class="form-control" rows="3" placeholder="Ví dụ: Đau đầu kéo dài 3 ngày, sốt nhẹ về chiều..."></textarea>
+                    <small class="text-muted">Mô tả triệu chứng giúp bác sĩ chuẩn bị hồ sơ bệnh án chu đáo hơn.</small>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <a asp-action="SelectSlot" asp-route-doctorId="@Model.DoctorId" asp-route-date="@Model.AppointmentDate.ToString("yyyy-MM-dd")" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Đổi khung giờ khác
+                    </a>
+                    <button type="submit" class="btn btn-success fw-bold px-4 py-2">
+                        <i class="bi bi-check2-circle me-1"></i> Xác nhận & Đi tới thanh toán
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

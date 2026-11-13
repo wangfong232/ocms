@@ -1,49 +1,344 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+﻿@using Microsoft.AspNetCore.Http
+@inject IHttpContextAccessor HttpContextAccessor
+
+<!DOCTYPE html>
+<html lang="vi">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - OCMSMVC</title>
+    <title>@ViewData["Title"] - OCMS Clinic</title>
+
+    <!-- Bootstrap 5 CSS -->
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <!-- Site Styles -->
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/OCMSMVC.styles.css" asp-append-version="true" />
 </head>
-<body>
+<body class="d-flex flex-column min-vh-100 bg-light">
+    <!-- Header / Navbar -->
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">OCMSMVC</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+            <div class="container">
+                <!-- Brand Logo -->
+                <a class="navbar-brand fw-bold d-flex align-items-center" asp-controller="Home" asp-action="Index">
+                    <i class="bi bi-hospital me-2 fs-4 text-warning"></i>
+                    <span>OCMS Clinic</span>
+                </a>
+
+                <!-- Mobile Toggle Button -->
+                <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain" aria-controls="navbarMain" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
+
+                <!-- Navigation Links -->
+                <div class="collapse navbar-collapse" id="navbarMain">
+                    @{
+                        var role = Context.Session.GetString("Role");
+                        var fullName = Context.Session.GetString("FullName");
+                        var email = Context.Session.GetString("Email");
+                        bool isGuest = string.IsNullOrEmpty(role);
+                        bool isPatient = role == "Patient";
+                        bool isDoctor = role == "Doctor";
+                        bool isStaff = role == "Staff";
+                        bool isAdmin = role == "Admin";
+                    }
+
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0 align-items-lg-center">
+                        <!-- 1. Trang chủ (Mọi người đều thấy) -->
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                            <a class="nav-link text-white fw-medium" asp-controller="Home" asp-action="Index">
+                                <i class="bi bi-house-door me-1"></i>Trang chủ
+                            </a>
                         </li>
+
+                        <!-- 2. Đặt lịch khám (Khách, Bệnh nhân) -->
+                        @if (isGuest || isPatient)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-white fw-medium" asp-controller="Booking" asp-action="Search">
+                                    <i class="bi bi-calendar-check me-1"></i>Đặt lịch khám
+                                </a>
+                            </li>
+                        }
+
+                        <!-- 3. Lịch hẹn của tôi (CHỈ Bệnh nhân đã đăng nhập) -->
+                        @if (isPatient)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-white fw-medium" asp-controller="Appointment" asp-action="MyAppointments">
+                                    <i class="bi bi-journal-medical me-1"></i>Lịch hẹn của tôi
+                                </a>
+                            </li>
+                        }
+
+                        <!-- 4. Đội ngũ Bác sĩ & Biểu phí (Công khai) -->
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+                            <a class="nav-link text-white fw-medium" asp-controller="Doctor" asp-action="Index">
+                                <i class="bi bi-people me-1"></i>Đội ngũ Bác sĩ
+                            </a>
                         </li>
+
+                        <!-- 5. Màn hình TV Sảnh Chờ (Màn hình công cộng tại sảnh phòng khám) -->
+                        <li class="nav-item">
+                            <a class="nav-link text-warning fw-semibold" asp-controller="Queue" asp-action="Display" target="_blank" title="Theo dõi số thứ tự sảnh chờ">
+                                <i class="bi bi-tv me-1"></i>TV Sảnh Chờ
+                            </a>
+                        </li>
+
+                        <!-- 6. CHỨC NĂNG DÀNH RIÊNG CHO BÁC SĨ (Doctor) -->
+                        @if (isDoctor)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-warning fw-bold" asp-controller="Consultation" asp-action="Queue">
+                                    <i class="bi bi-clipboard2-pulse me-1"></i>Bàn khám bệnh EMR
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-white fw-medium" asp-controller="DoctorSchedule" asp-action="Index">
+                                    <i class="bi bi-calendar2-week me-1"></i>Lịch trực của tôi
+                                </a>
+                            </li>
+                        }
+
+                        <!-- 7. CHỨC NĂNG DÀNH RIÊNG CHO NHÂN VIÊN QUẦY (Staff: Lễ tân, Thu ngân, Dược sĩ) -->
+                        @if (isStaff)
+                        {
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-white fw-medium" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-door-open me-1"></i>Tiếp đón & Quầy
+                                </a>
+                                <ul class="dropdown-menu shadow border-0">
+                                    <li>
+                                        <a class="dropdown-item py-2" asp-controller="Reception" asp-action="CheckIn">
+                                            <i class="bi bi-qr-code-scan me-2 text-primary"></i>Tiếp đón & Quét QR
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2" asp-controller="Reception" asp-action="WalkIn">
+                                            <i class="bi bi-person-plus me-2 text-warning"></i>Đăng ký bệnh nhân vãng lai
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2" asp-controller="Queue" asp-action="Dispatch">
+                                            <i class="bi bi-broadcast me-2 text-info"></i>Bảng gọi số vào phòng khám
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-white fw-medium" asp-controller="Billing" asp-action="Index">
+                                    <i class="bi bi-cash-stack me-1"></i>Thu ngân
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-white fw-medium" asp-controller="Pharmacy" asp-action="Index">
+                                    <i class="bi bi-capsule me-1"></i>Cấp phát thuốc
+                                </a>
+                            </li>
+                        }
+
+                        <!-- 8. CHỨC NĂNG DÀNH RIÊNG CHO QUẢN TRỊ VIÊN (Admin) -->
+                        @if (isAdmin)
+                        {
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-warning fw-bold" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-shield-lock me-1"></i>Quản trị hệ thống
+                                </a>
+                                <ul class="dropdown-menu shadow border-0">
+                                    <li>
+                                        <a class="dropdown-item py-2" asp-controller="Admin" asp-action="Index">
+                                            <i class="bi bi-speedometer2 me-2 text-primary"></i>Tổng quan phòng khám
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2" asp-controller="Admin" asp-action="Users">
+                                            <i class="bi bi-people me-2 text-success"></i>Quản lý tài khoản
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2" asp-controller="Admin" asp-action="Departments">
+                                            <i class="bi bi-diagram-3 me-2 text-warning"></i>Quản lý khoa khám
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2" asp-controller="Admin" asp-action="Rooms">
+                                            <i class="bi bi-door-closed me-2 text-info"></i>Quản lý phòng khám
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-white fw-medium" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-hospital me-1"></i>Vận hành & Giám sát
+                                </a>
+                                <ul class="dropdown-menu shadow border-0">
+                                    <li><a class="dropdown-item py-2" asp-controller="Reception" asp-action="CheckIn"><i class="bi bi-qr-code-scan me-2 text-primary"></i>Cổng tiếp đón & Quét QR</a></li>
+                                    <li><a class="dropdown-item py-2" asp-controller="Reception" asp-action="WalkIn"><i class="bi bi-person-plus me-2 text-warning"></i>Đăng ký vãng lai</a></li>
+                                    <li><a class="dropdown-item py-2" asp-controller="Queue" asp-action="Dispatch"><i class="bi bi-broadcast me-2 text-info"></i>Bảng gọi số khám</a></li>
+                                    <li><a class="dropdown-item py-2" asp-controller="Billing" asp-action="Index"><i class="bi bi-cash-stack me-2 text-success"></i>Quầy thu ngân</a></li>
+                                    <li><a class="dropdown-item py-2" asp-controller="Pharmacy" asp-action="Index"><i class="bi bi-capsule me-2 text-danger"></i>Nhà thuốc phòng khám</a></li>
+                                </ul>
+                            </li>
+                        }
+                    </ul>
+
+                    <!-- User Account / Session Controls -->
+                    <ul class="navbar-nav ms-auto align-items-center">
+                        @if (!isGuest)
+                        {
+                            <!-- Nút mở nhanh Modal Hồ sơ Bác sĩ nếu là Doctor -->
+                            @if (isDoctor)
+                            {
+                                <li class="nav-item me-2">
+                                    <button type="button" class="btn btn-outline-light btn-sm px-2 shadow-sm" onclick="openDoctorProfileModal()" title="Cập nhật biểu phí & phòng khám">
+                                        <i class="bi bi-person-gear me-1"></i>Hồ sơ Bác sĩ
+                                    </button>
+                                </li>
+                            }
+
+                            <!-- Dropdown User -->
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-white d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-person-circle fs-5 me-2"></i>
+                                    <span class="d-none d-md-inline fw-semibold me-1">@fullName</span>
+                                    <span class="badge @(isAdmin ? "bg-danger" : isDoctor ? "bg-warning text-dark" : isStaff ? "bg-info text-dark" : "bg-success") ms-1">
+                                        @role
+                                    </span>
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2">
+                                    <li class="px-3 py-2 bg-light border-bottom">
+                                        <div class="fw-bold text-dark">@fullName</div>
+                                        <div class="text-muted small">@email</div>
+                                    </li>
+                                    <li><hr class="dropdown-divider m-0"></li>
+
+                                    <!-- Link Bàn làm việc tương ứng vai trò -->
+                                    @if (isDoctor)
+                                    {
+                                        <li>
+                                            <a class="dropdown-item py-2" asp-controller="Consultation" asp-action="Queue">
+                                                <i class="bi bi-clipboard2-pulse me-2 text-primary"></i>Bàn khám bệnh hôm nay
+                                            </a>
+                                        </li>
+                                    }
+                                    else if (isAdmin)
+                                    {
+                                        <li>
+                                            <a class="dropdown-item py-2" asp-controller="Admin" asp-action="Index">
+                                                <i class="bi bi-speedometer2 me-2 text-primary"></i>Bảng điều khiển Admin
+                                            </a>
+                                        </li>
+                                    }
+                                    else if (isStaff)
+                                    {
+                                        <li>
+                                            <a class="dropdown-item py-2" asp-controller="Reception" asp-action="CheckIn">
+                                                <i class="bi bi-qr-code-scan me-2 text-primary"></i>Cổng tiếp đón & Check-in
+                                            </a>
+                                        </li>
+                                    }
+                                    else if (isPatient)
+                                    {
+                                        <li>
+                                            <a class="dropdown-item py-2" asp-controller="Appointment" asp-action="MyAppointments">
+                                                <i class="bi bi-journal-medical me-2 text-primary"></i>Lịch hẹn của tôi
+                                            </a>
+                                        </li>
+                                    }
+
+                                    <li>
+                                        <a class="dropdown-item py-2" asp-controller="Auth" asp-action="Profile">
+                                            <i class="bi bi-person-lines-fill me-2 text-secondary"></i>Thông tin cá nhân
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2" asp-controller="Auth" asp-action="ChangePassword">
+                                            <i class="bi bi-key me-2 text-secondary"></i>Đổi mật khẩu
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <form asp-controller="Auth" asp-action="Logout" method="post" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="dropdown-item py-2 text-danger">
+                                                <i class="bi bi-box-arrow-right me-2"></i>Đăng xuất
+                                            </button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+                        else
+                        {
+                            <!-- Khách chưa đăng nhập -->
+                            <li class="nav-item me-2">
+                                <a class="btn btn-outline-light btn-sm px-3 shadow-sm" asp-controller="Auth" asp-action="Register">
+                                    <i class="bi bi-person-plus me-1"></i>Đăng ký
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="btn btn-warning btn-sm text-dark fw-bold px-3 shadow-sm" asp-controller="Auth" asp-action="Login">
+                                    <i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập
+                                </a>
+                            </li>
+                        }
                     </ul>
                 </div>
             </div>
         </nav>
     </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
-    </div>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - OCMSMVC - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+    <!-- Main Body Container -->
+    <main role="main" class="flex-grow-1">
+        @RenderBody()
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-top footer text-muted mt-auto py-4 bg-white">
+        <div class="container text-center small">
+            <div class="row align-items-center">
+                <div class="col-md-6 text-md-start mb-2 mb-md-0">
+                    <span class="fw-semibold text-primary"><i class="bi bi-hospital me-1"></i>OCMS Clinic</span> - Hệ Thống Quản Lý Tiếp Đón & Khám Bệnh Ngoại Trú
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <span class="text-muted">&copy; 2026 Outpatient Clinic Management System - SE1972-NET Group 6</span>
+                </div>
+            </div>
         </div>
     </footer>
+
+    <!-- Container cho Modal cập nhật hồ sơ bác sĩ -->
+    <div id="doctorProfileModalContainer"></div>
+
+    <!-- Scripts -->
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+
+    <script>
+        function openDoctorProfileModal() {
+            fetch('/Doctor/GetProfileModal')
+                .then(function(res) {
+                    if (!res.ok) throw new Error("Chưa đăng nhập hoặc không có quyền bác sĩ.");
+                    return res.text();
+                })
+                .then(function(html) {
+                    document.getElementById('doctorProfileModalContainer').innerHTML = html;
+                    var modalEl = document.getElementById('doctorProfileModal');
+                    if (modalEl) {
+                        var modal = new bootstrap.Modal(modalEl);
+                        modal.show();
+                    }
+                })
+                .catch(function(err) {
+                    console.error(err);
+                });
+        }
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

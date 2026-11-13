@@ -1,0 +1,107 @@
+﻿@model OCMSMVC.Models.LoginViewModel
+@{
+    ViewData["Title"] = "Đăng nhập hệ thống";
+}
+
+<div class="row justify-content-center mt-4">
+    <div class="col-md-5">
+        <div class="card shadow-sm border-0 rounded-3">
+            <div class="card-header bg-primary text-white text-center py-3">
+                <h4 class="mb-0 fw-bold"><i class="bi bi-hospital me-2"></i>Phòng Khám OCMS</h4>
+                <small class="text-white-50">Đăng nhập tài khoản làm việc & đặt khám</small>
+            </div>
+            <div class="card-body p-4">
+                @if (TempData["SuccessMessage"] != null)
+                {
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                }
+
+                @if (!ViewData.ModelState.IsValid && ViewData.ModelState[string.Empty]?.Errors.Count > 0)
+                {
+                    <div class="alert alert-danger" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        @Html.ValidationSummary(true, "")
+                    </div>
+                }
+
+                <form asp-action="Login" method="post">
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label fw-semibold">Địa chỉ Email</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                            <input asp-for="Email" class="form-control" id="emailInput" placeholder="name@ocms.clinic" />
+                        </div>
+                        <span asp-validation-for="Email" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label asp-for="Password" class="form-label fw-semibold mb-0">Mật khẩu</label>
+                            <a asp-action="ForgotPassword" class="text-decoration-none small text-primary">Quên mật khẩu?</a>
+                        </div>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-key"></i></span>
+                            <input asp-for="Password" class="form-control" id="passwordInput" placeholder="••••••••" />
+                        </div>
+                        <span asp-validation-for="Password" class="text-danger small"></span>
+                    </div>
+
+                    <div class="d-grid mb-3">
+                        <button type="submit" class="btn btn-primary btn-lg fw-bold">
+                            <i class="bi bi-box-arrow-in-right me-1"></i> Đăng nhập
+                        </button>
+                    </div>
+
+                    <div class="text-center">
+                        <span class="text-muted">Chưa có tài khoản bệnh nhân? </span>
+                        <a asp-action="Register" class="fw-semibold text-decoration-none">Đăng ký ngay</a>
+                    </div>
+                    
+                </form>
+
+                <!-- DEMO -->
+                <hr class="my-4" />
+                <div class="bg-light p-3 rounded-3 border">
+                    <div class="text-muted small fw-bold mb-2 text-center text-uppercase">
+                        <i class="text-warning me-1"></i>Chọn nhanh tài khoản test (Demo)
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="fillTestAccount('admin@ocms.clinic')">
+                                <i class="bi bi-shield-lock me-1"></i>Admin
+                            </button>
+                        </div>
+                        <div class="col-6">
+                            <button type="button" class="btn btn-sm btn-outline-success w-100" onclick="fillTestAccount('doctor@ocms.clinic')">
+                                <i class="bi bi-heart-pulse me-1"></i>Bác sĩ
+                            </button>
+                        </div>
+                        <div class="col-6">
+                            <button type="button" class="btn btn-sm btn-outline-info w-100" onclick="fillTestAccount('staff@ocms.clinic')">
+                                <i class="bi bi-person-badge me-1"></i>Lễ tân
+                            </button>
+                        </div>
+                        <div class="col-6">
+                            <button type="button" class="btn btn-sm btn-outline-primary w-100" onclick="fillTestAccount('patient@ocms.clinic')">
+                                <i class="bi bi-person me-1"></i>Bệnh nhân
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        function fillTestAccount(email) {
+            document.getElementById('emailInput').value = email;
+            document.getElementById('passwordInput').value = '123456';
+        }
+    </script>
+}

@@ -1,0 +1,55 @@
+@model BusinessObjects.Entities.Payment
+@{
+    ViewData["Title"] = "Biên nhận";
+    var appointment = Model.Appointment;
+    var consultation = appointment.ConsultationFee ?? appointment.Doctor.PricePerSlot;
+    var deposits = appointment.Payments.Where(p => p.PaymentType == "Deposit" && p.PaymentStatus == "Success").Sum(p => p.Amount);
+    var services = appointment.ServiceOrders.Where(s => s.Status == "Paid").ToList();
+    var medicines = appointment.MedicalRecord?.PrescriptionDetails.Where(p => p.Status is "Paid" or "Dispensed").ToList() ?? new();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4 no-print">
+    <h1 class="h3 mb-0">Biên nhận thanh toán</h1>
+    <div class="d-flex gap-2"><a class="btn btn-outline-secondary" asp-action="Index">Quay lại</a><button class="btn btn-primary" onclick="window.print()"><i class="bi bi-printer me-1"></i>In biên nhận</button></div>
+</div>
+
+<div class="receipt card border-0 shadow-sm mx-auto">
+    <div class="card-body p-4 p-md-5">
+        <div class="text-center border-bottom pb-3 mb-4"><div class="text-primary fw-bold fs-4">OCMS CLINIC</div><div class="text-muted">BIÊN NHẬN THANH TOÁN</div></div>
+        <div class="row g-2 mb-4">
+            <div class="col-6"><span class="text-muted">Mã phiếu thu:</span> <strong>RCPT-@Model.Id.ToString("D8")</strong></div>
+            <div class="col-6 text-end"><span class="text-muted">Thời gian:</span> @Model.CreatedAt.AddHours(7).ToString("dd/MM/yyyy HH:mm")</div>
+            <div class="col-6"><span class="text-muted">Bệnh nhân:</span> @appointment.Patient.User.FullName</div>
+            <div class="col-6 text-end"><span class="text-muted">Lượt khám:</span> #@appointment.Id</div>
+            <div class="col-6"><span class="text-muted">Bác sĩ:</span> @appointment.Doctor.AcademicTitle @appointment.Doctor.User.FullName</div>
+            <div class="col-6 text-end"><span class="text-muted">Thu ngân:</span> @(Model.Cashier?.FullName ?? "-")</div>
+        </div>
+        <table class="table table-sm">
+            <thead><tr><th>Nội dung</th><th class="text-end">Thành tiền</th></tr></thead>
+            <tbody>
+                <tr><td>Phí khám</td><td class="text-end">@consultation.ToString("N0") ₫</td></tr>
+                @foreach (var service in services) { <tr><td>@service.MedicalService.Name</td><td class="text-end">@service.UnitPrice.ToString("N0") ₫</td></tr> }
+                @foreach (var medicine in medicines) { <tr><td>@medicine.Medicine.Name × @medicine.Quantity</td><td class="text-end">@((medicine.UnitPrice * medicine.Quantity).ToString("N0")) ₫</td></tr> }
+                <tr class="text-success"><td>Đã thanh toán trước</td><td class="text-end">− @deposits.ToString("N0") ₫</td></tr>
+            </tbody>
+            <tfoot><tr class="fs-5 fw-bold"><td>Đã thu (@(Model.PaymentMethod == "POS" ? "POS" : "Tiền mặt"))</td><td class="text-end">@Model.Amount.ToString("N0") ₫</td></tr></tfoot>
+        </table>
+        <p class="text-center text-muted small mt-4 mb-0">Cảm ơn quý khách đã sử dụng dịch vụ.</p>
+    </div>
+</div>
+
+<style>
+    .receipt { max-width: 820px; }
+    @@media print {
+        @@page { size: 80mm auto; margin: 3mm; }
+        html, body { width: 74mm !important; margin: 0 !important; padding: 0 !important; background: white !important; font-size: 10pt; }
+        header, footer, .no-print { display: none !important; }
+        .container { width: 74mm !important; max-width: 74mm !important; margin: 0 !important; padding: 0 !important; }
+        .receipt { width: 74mm !important; max-width: 74mm !important; margin: 0 !important; box-shadow: none !important; border: 0 !important; }
+        .receipt .card-body { padding: 2mm !important; }
+        .receipt .row { display: block; }
+        .receipt .row > div { width: 100%; text-align: left !important; }
+        .receipt table { width: 100%; font-size: 9pt; }
+        .receipt th, .receipt td { padding: 1.5mm 0 !important; }
+    }
+</style>

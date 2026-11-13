@@ -1,0 +1,363 @@
+@model BusinessObjects.Entities.Appointment
+@{
+    ViewData["Title"] = "Tiếp Đón & Check-In";
+    var recentList = ViewBag.TodayAppointments as List<BusinessObjects.Entities.Appointment> ?? new List<BusinessObjects.Entities.Appointment>();
+}
+
+<div class="container py-4" style="max-width: 900px;">
+    <!-- Tiêu đề trang -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-primary mb-1">
+                <i class="bi bi-person-check-fill me-2"></i>Cổng Tiếp Đón & Check-In Bệnh Nhân
+            </h3>
+            <p class="text-muted mb-0">Quét ảnh mã QR vé khám hoặc nhập SĐT, đo sinh hiệu (BP, Pulse, SpO2) và cấp số thứ tự khám.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-action="WalkIn" class="btn btn-warning fw-semibold shadow-sm">
+                <i class="bi bi-person-plus-fill me-1"></i>Đăng Ký Vãng Lai
+            </a>
+            <a asp-action="ResetDemo" class="btn btn-outline-danger btn-sm" onclick="return confirm('Đặt lại dữ liệu demo hôm nay?')">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Reset Demo
+            </a>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(ViewBag.Message))
+    {
+        <div class="alert alert-@ViewBag.MessageType alert-dismissible fade show mb-4 rounded-3 shadow-sm" role="alert">
+            <i class="bi bi-info-circle-fill me-2"></i><strong>@ViewBag.Message</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Khối tìm kiếm vé khám & Quét ảnh QR -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+        <div class="card-header bg-primary text-white py-3 px-4">
+            <h5 class="fw-bold mb-0">
+                <i class="bi bi-search me-2"></i>Tra Cứu Vé Khám & Tiếp Đón
+            </h5>
+        </div>
+        <div class="card-body p-4">
+            <form asp-action="Search" method="post" id="searchForm">
+                @Html.AntiForgeryToken()
+                <label class="form-label fw-semibold">
+                    Nhập mã QR vé (ví dụ <code>OCMS-APT-1001</code>) hoặc Số điện thoại bệnh nhân:
+                </label>
+                <div class="input-group mb-3">
+                    <input type="text" name="query" id="searchInput" class="form-control form-control-lg" 
+                           placeholder="Nhập mã QR, mã vé hoặc SĐT (vd: 0900000004)..." required />
+                    <button class="btn btn-primary fw-bold px-4" type="submit">
+                        <i class="bi bi-search me-1"></i> Tìm Kiếm
+                    </button>
+                </div>
+            </form>
+
+            <!-- Nút quét mã QR từ file ảnh -->
+            <div class="d-flex align-items-center gap-3 pt-2 border-top">
+                <span class="fw-semibold text-secondary">
+                    <i class="bi bi-file-earmark-image-fill text-success me-1"></i>Quét mã QR từ hình ảnh:
+                </span>
+                
+                <button type="button" id="btnUploadQR" class="btn btn-outline-success fw-semibold">
+                    <i class="bi bi-upload me-1"></i> Chọn Ảnh QR Vé Khám
+                </button>
+                <input type="file" id="qrFileInput" accept="image/*" style="display: none;" />
+
+                <small class="text-muted fst-italic">Hệ thống tự động đọc mã QR và tìm lịch hẹn ngay lập tức.</small>
+            </div>
+
+            <!-- Vùng ẩn để thư viện đọc ảnh QR -->
+            <div id="qr-reader" style="display: none;"></div>
+        </div>
+    </div>
+
+    @if (Model != null)
+    {
+        <!-- Khối thông tin tiếp đón & Đo sinh hiệu -->
+        <div class="card border-0 shadow rounded-4 overflow-hidden mb-4 border-start border-4 border-success">
+            <div class="card-header bg-success text-white py-3 px-4 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0">
+                    <i class="bi bi-clipboard2-pulse me-2"></i>Phiếu Tiếp Đón - Lịch Hẹn #@Model.Id
+                </h5>
+                <span class="badge bg-light text-success fw-bold">Mã QR: @(Model.QrCodeToken ?? $"OCMS-APT-{Model.Id}")</span>
+            </div>
+            <div class="card-body p-4">
+                <!-- Thông tin tóm tắt lịch hẹn -->
+                <div class="alert alert-light border rounded-3 p-3 mb-4">
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <small class="text-muted d-block">Bệnh nhân:</small>
+                            <strong class="text-primary fs-5">@(Model.Patient?.User?.FullName ?? "N/A")</strong>
+                        </div>
+                        <div class="col-sm-6">
+                            <small class="text-muted d-block">Số điện thoại:</small>
+                            <strong>@(Model.Patient?.User?.PhoneNumber ?? "N/A")</strong>
+                        </div>
+                        <div class="col-sm-6">
+                            <small class="text-muted d-block">Bác sĩ phụ trách:</small>
+                            <strong>@(Model.Doctor?.AcademicTitle) @(Model.Doctor?.User?.FullName)</strong> 
+                            <span class="text-muted">(@(Model.Doctor?.Department?.Name ?? "Nội tổng quát"))</span>
+                        </div>
+                        <div class="col-sm-6">
+                            <small class="text-muted d-block">Phòng khám:</small>
+                            <span class="badge bg-info text-dark fs-6 px-3 py-1">
+                                Phòng @(Model.TimeSlot?.DoctorSchedule?.Room?.RoomNumber ?? "101")
+                            </span>
+                        </div>
+                        <div class="col-sm-6">
+                            <small class="text-muted d-block">Giờ hẹn khám:</small>
+                            <span class="badge bg-secondary fs-6 px-3 py-1">
+                                @Model.AppointmentDate.ToString("dd/MM/yyyy HH:mm")
+                            </span>
+                        </div>
+                        <div class="col-sm-6">
+                            <small class="text-muted d-block">Trạng thái hiện tại:</small>
+                            <span class="badge @(Model.Status == "Confirmed" ? "bg-primary" : (Model.Status == "Arrived" ? "bg-warning text-dark" : "bg-success")) fs-6">
+                                @Model.Status
+                            </span>
+                            @if (Model.QueueNumber.HasValue)
+                            {
+                                <span class="badge bg-danger fs-6 ms-2">
+                                    <i class="bi bi-tag-fill me-1"></i>Số khám: #@Model.QueueNumber
+                                </span>
+                            }
+                        </div>
+                        @if (!string.IsNullOrEmpty(Model.Reason))
+                        {
+                            <div class="col-12">
+                                <small class="text-muted d-block">Triệu chứng / Lý do khám:</small>
+                                <span class="text-dark fst-italic">@Model.Reason</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                @if (Model.Status == "Confirmed" || Model.Status == "Pending")
+                {
+                    <form asp-action="ConfirmCheckIn" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="appointmentId" value="@Model.Id" />
+
+                        <h5 class="fw-bold text-dark mb-3">
+                            <i class="bi bi-heart-pulse text-danger me-2"></i>Đo Chỉ Số Sinh Hiệu (Vital Signs)
+                        </h5>
+
+                        <div class="row g-3 mb-4">
+                            <!-- Huyết áp -->
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Huyết áp tâm thu (mmHg)</label>
+                                <input type="number" name="systolicBP" class="form-control" value="120" required />
+                                <small class="text-muted">Systolic (vd: 120)</small>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Huyết áp tâm trương (mmHg)</label>
+                                <input type="number" name="diastolicBP" class="form-control" value="80" required />
+                                <small class="text-muted">Diastolic (vd: 80)</small>
+                            </div>
+
+                            <!-- Nhịp tim Pulse -->
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Mạch / Nhịp tim (bpm)</label>
+                                <input type="number" name="pulseRate" class="form-control" value="75" required />
+                                <small class="text-muted">Nhịp/phút</small>
+                            </div>
+
+                            <!-- SpO2 -->
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold text-primary">Nồng độ SpO2 (%)</label>
+                                <input type="number" name="spO2" class="form-control border-primary" value="98" min="70" max="100" required />
+                                <small class="text-muted">Oxy máu (95-100)</small>
+                            </div>
+
+                            <!-- Thân nhiệt -->
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Thân nhiệt (°C)</label>
+                                <input type="number" step="0.1" name="temperature" class="form-control" value="36.8" required />
+                            </div>
+
+                            <!-- Cân nặng -->
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Cân nặng (kg)</label>
+                                <input type="number" step="0.5" name="weight" class="form-control" value="65.0" />
+                            </div>
+
+                            <!-- Chiều cao -->
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Chiều cao (cm)</label>
+                                <input type="number" step="1" name="height" class="form-control" value="168" />
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center pt-2">
+                            <a asp-action="CheckIn" class="btn btn-outline-secondary">Hủy bỏ</a>
+                            <button type="submit" class="btn btn-success btn-lg fw-bold px-4 shadow-sm">
+                                <i class="bi bi-check-circle me-1"></i> Xác Nhận Check-In & Cấp Số Thứ Tự
+                            </button>
+                        </div>
+                    </form>
+                }
+                else
+                {
+                    <div class="alert alert-info mb-0 d-flex justify-content-between align-items-center rounded-3">
+                        <div>
+                            <i class="bi bi-check-circle-fill fs-4 text-success me-2 align-middle"></i>
+                            Bệnh nhân đã hoàn tất check-in với <strong>Số khám: #@Model.QueueNumber</strong> tại 
+                            <strong>Phòng @(Model.TimeSlot?.DoctorSchedule?.Room?.RoomNumber ?? "101")</strong>.
+                        </div>
+                        <a asp-controller="Queue" asp-action="Dispatch" class="btn btn-sm btn-primary">
+                            <i class="bi bi-arrow-right-circle me-1"></i>Đến Bảng Điều Phối Khám
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Bảng danh sách lịch hẹn hôm nay để chọn nhanh khi demo -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-light py-3 px-4 d-flex justify-content-between align-items-center">
+            <h6 class="fw-bold text-muted text-uppercase mb-0">
+                <i class="bi bi-calendar2-day me-2"></i>Danh Sách Lịch Hẹn Hôm Nay (Chọn Nhanh Demo & Lấy QR)
+            </h6>
+            <span class="badge bg-primary">@recentList.Count cuộc hẹn</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Mã Vé / QR</th>
+                        <th>Bệnh nhân</th>
+                        <th>SĐT</th>
+                        <th>Bác sĩ & Phòng</th>
+                        <th>Giờ hẹn</th>
+                        <th>Trạng thái</th>
+                        <th class="text-end pe-4">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="todayListBody">
+                    @if (!recentList.Any())
+                    {
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-muted">Chưa có lịch hẹn nào hôm nay.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var item in recentList)
+                        {
+                            var token = item.QrCodeToken ?? $"OCMS-APT-{item.Id}";
+                            <tr>
+                                <td class="ps-4">
+                                    <strong class="text-primary font-monospace">@token</strong>
+                                    <button type="button" class="btn btn-link btn-sm p-0 ms-1 text-secondary" 
+                                            onclick="showQrModal('@token', '@(item.Patient?.User?.FullName)')" title="Xem mã QR">
+                                        <i class="bi bi-qr-code"></i>
+                                    </button>
+                                </td>
+                                <td class="fw-semibold">@(item.Patient?.User?.FullName ?? "N/A")</td>
+                                <td>@(item.Patient?.User?.PhoneNumber ?? "N/A")</td>
+                                <td>
+                                    <div>@(item.Doctor?.AcademicTitle) @(item.Doctor?.User?.FullName)</div>
+                                    <small class="badge bg-light text-dark border">
+                                        P.@(item.TimeSlot?.DoctorSchedule?.Room?.RoomNumber ?? "101")
+                                    </small>
+                                </td>
+                                <td>@item.AppointmentDate.ToString("HH:mm")</td>
+                                <td>
+                                    <span class="badge @(item.Status == "Confirmed" ? "bg-primary" : (item.Status == "Arrived" ? "bg-warning text-dark" : "bg-success"))">
+                                        @item.Status
+                                    </span>
+                                    @if (item.QueueNumber.HasValue)
+                                    {
+                                        <span class="badge bg-danger ms-1">#@item.QueueNumber</span>
+                                    }
+                                </td>
+                                <td class="text-end pe-4">
+                                    <a asp-action="CheckIn" asp-route-appointmentId="@item.Id" class="btn btn-sm btn-outline-primary fw-semibold">
+                                        Chọn nạp
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal hiển thị mã QR mẫu -->
+<div class="modal fade" id="qrModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content rounded-4 text-center p-3">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-bold text-primary" id="qrModalTitle">Mã QR Vé Khám</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-3">
+                <img id="qrModalImg" src="" alt="QR Code" class="img-fluid border rounded p-2 mb-2 shadow-sm" style="width: 220px; height: 220px;" />
+                <div class="font-monospace fw-bold fs-6 text-dark" id="qrModalToken"></div>
+                <small class="text-muted d-block mt-1">Lưu ảnh này về máy để test tính năng chọn ảnh QR.</small>
+            </div>
+            <div class="modal-footer border-0 pt-0 justify-content-center">
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="downloadQrImage()">
+                    <i class="bi bi-download me-1"></i> Tải ảnh QR về máy
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<!-- Thư viện quét mã QR từ ảnh -->
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+<script>
+    // 1. Quét mã QR từ file ảnh
+    const btnUpload = document.getElementById('btnUploadQR');
+    const fileInput = document.getElementById('qrFileInput');
+
+    btnUpload.addEventListener('click', function () {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', async function (e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+            const html5QrCode = new Html5Qrcode("qr-reader");
+            // Đọc mã QR từ file ảnh
+            const decodedText = await html5QrCode.scanFile(file, true);
+
+            // Điền mã vào ô tìm kiếm và submit form
+            document.getElementById('searchInput').value = decodedText.trim();
+            document.getElementById('searchForm').submit();
+        } catch (err) {
+            alert("Không tìm thấy mã QR trong bức ảnh này. Vui lòng chọn ảnh vé khám rõ nét hơn!");
+        }
+    });
+
+    // 2. Hiển thị Popup mã QR mẫu
+    function showQrModal(token, patientName) {
+        document.getElementById('qrModalTitle').innerText = patientName ? `Vé: ${patientName}` : 'Mã QR Vé Khám';
+        document.getElementById('qrModalToken').innerText = token;
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(token)}`;
+        document.getElementById('qrModalImg').src = qrUrl;
+
+        const modal = new bootstrap.Modal(document.getElementById('qrModal'));
+        modal.show();
+    }
+
+    function downloadQrImage() {
+        const img = document.getElementById('qrModalImg');
+        const token = document.getElementById('qrModalToken').innerText;
+        const a = document.createElement('a');
+        a.href = img.src;
+        a.download = `QRCode_${token}.png`;
+        a.target = '_blank';
+        a.click();
+    }
+</script>
+}

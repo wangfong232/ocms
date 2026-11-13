@@ -62,7 +62,7 @@ Unlike conventional CRUD booking platforms, OCMS enforces strict healthcare doma
 * **ORM:** Entity Framework Core 8.0 (Code-First Migrations & Fluent API Mapping)
 * **Database:** Microsoft SQL Server 2022
 * **Real-time Communication:** Microsoft ASP.NET Core SignalR
-* **Security & Auth:** ASP.NET Core Cookie Authentication & Session State with BCrypt password hashing (`[Authorize(Roles = "...")]`)
+* **Security & Auth:** ASP.NET Core Session State (Session-based Role Authentication) kết hợp mã hóa mật khẩu BCrypt
 * **Background Tasks:** .NET Worker Service (`IHostedService` / `BackgroundService`)
 * **Frontend UI:** Razor Views (`.cshtml`), HTML5, CSS3, Bootstrap 5, FontAwesome 6, Chart.js
 * **Hardware Integration (Web Native):** 
@@ -168,6 +168,11 @@ dotnet run --project OCMSMVC
 Open your browser and navigate to:
 * `https://localhost:7196` or `http://localhost:5196`
 
+### Staff billing and pharmacy
+
+* Staff/Admin can use **Billing** to settle completed appointments by Cash or POS, print receipts, and use **Pharmacy** to dispense paid prescriptions with an atomic stock deduction.
+* EF Core migrations are applied at startup. Existing databases created by the previous `EnsureCreated` initializer are adopted as the initial migration baseline before applying additive migrations.
+
 ---
 
 ## 🔑 Default Test Accounts
@@ -271,8 +276,10 @@ To ensure smooth teamwork, avoid merge conflicts, and protect the codebase acros
 
 4. **Bước 4 — Mở Pull Request (PR) & Leader Review:**
    * Lên web GitHub, tạo **Pull Request** từ nhánh `feature/...` của bạn vào nhánh **`develop`**.
-   * **Leader (Phong)** review code: nếu đúng kiến trúc 5 tầng, không đè file người khác $ightarrow$ Bấm **Merge vào `develop`**.
-   * Khi toàn bộ nhóm hoàn thành xong milestone và kiểm thử luồng thông suốt $ightarrow$ Leader mới merge từ **`develop` vào `main`** để nộp bài!
+   * **Leader (Phong)** review code: nếu đúng kiến trúc 5 tầng, không đè file người khác $
+ightarrow$ Bấm **Merge vào `develop`**.
+   * Khi toàn bộ nhóm hoàn thành xong milestone và kiểm thử luồng thông suốt $
+ightarrow$ Leader mới merge từ **`develop` vào `main`** để nộp bài!
 
 ---
 
@@ -285,10 +292,23 @@ Khi triển khai một thực thể mới (ví dụ `Appointment`, `Payment`, `D
    builder.Services.AddScoped<IAppointmentRepository, AppointmentRepository>();
    builder.Services.AddScoped<IAppointmentService, AppointmentService>();
    ```
-4. **Authorization:** Sử dụng thuộc tính `[Authorize(Roles = "...")]` trên Controller để phân quyền:
-   * `[Authorize(Roles = "Doctor")]` cho bác sĩ.
-   * `[Authorize(Roles = "Staff")]` cho lễ tân, thu ngân, dược sĩ.
-   * `[Authorize(Roles = "Admin")]` cho quản trị viên.
+4. **Phân quyền bằng Session (Role-Based Session Check):**
+   Kiểm tra trực tiếp biến `Role` lưu trong Session ở đầu mỗi Action hoặc Controller:
+   ```csharp
+   // Ví dụ trong DoctorController (Chỉ cho Bác sĩ truy cập):
+   var role = HttpContext.Session.GetString("Role");
+   if (role != "Doctor") 
+   {
+       return RedirectToAction("Login", "Auth");
+   }
+
+   // Ví dụ trong ReceptionController / CashierController (Cho Lễ tân, Thu ngân):
+   var role = HttpContext.Session.GetString("Role");
+   if (role != "Staff" && role != "Admin")
+   {
+       return RedirectToAction("AccessDenied", "Auth");
+   }
+   ```
 
 ---
 

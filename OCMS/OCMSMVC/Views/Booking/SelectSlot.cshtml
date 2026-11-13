@@ -1,0 +1,197 @@
+﻿@model OCMSMVC.Models.SelectSlotViewModel
+@{
+	ViewData["Title"] = "Chọn Khung Giờ Khám";
+	bool hasHeldSlot = Model.CurrentHeldSlot != null && Model.RemainingSeconds > 0;
+}
+
+<div class="container py-4">
+	<!--Bac si-->
+	<div class="card border-1 mb-4 bg-primary text-white">
+		<div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+			<div>
+				<a asp-action="Search" class="btn btn-sm btn-light mb-2"><i class="bi bi-arrow-left"></i> Quay lại tìm kiếm</a>
+				<h3 class="fw-bold mb-1">@Model.AcademicTitle @Model.DoctorName</h3>
+				<p class="opacity-75">Chuyên khoa: @Model.DepartmentName | Ngày khám: <strong>@Model.SelectedDate.ToString("dd/MM/yyyy")</strong></p			
+			</div>
+			<div cllass="text-end">
+				<span class="badge bg-white text-primary">Giá: @Model.PricePerSlot.ToString() VNĐ</span>
+			</div>
+		</div>
+	</div>
+
+
+<!-- Dem nguoc-->
+	<div id="countdownAlert" class="mb-0 alert alert-warning alert-dismissible fade show border-1 @(hasHeldSlot ? "" : "d-none")" role="alert">
+		<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+			<div class="d-flex align-items-center">
+				<div>
+					<div>
+						Bạn đang giữu khung giờ: <strong id="heldTimeText" class="text-primary">@(hasHeldSlot ? $"{Model.CurrentHeldSlot!.StartTime:hh\\:mm} - {Model.CurrentHeldSlot.EndTime:hh\\:mm}" : "")</strong>
+						<small class="text-muted">Thời gian giữ chỗ còn lại: <span id="timerDisplay" class="fw-bold text-danger">10:00</span></small>
+					</div>
+				</div>
+			</div>
+			<a asp-action="Confirm" id="btnProceedConfirm" class="btn btn-primary fw-bold border-1">Xác nhận thông tin đặt lịch <i class="bi bi-arrow-right ms-1"></i></a>
+		</div>
+		</div>
+	</div>
+
+	<!--grid-->
+	<div class="row g-4">
+		<!--sang-->
+		<div class="col-md-6">
+			<div class="card border-1 h-100">
+				<div class="card-header bg-white border-0 py-3">
+					<h5 class="fw-bold text-primary">Ca sáng (07:30 - 11:30)</h5>
+				</div>
+				<div class="card-body">
+					<div class="row g-2">
+					@foreach (var slot in Model.MorningSlots)
+					{
+						var btnClass = slot.IsHeldByCurrentUser ? "btn-success active" : (slot.Status == "Open" ? "btn-outline-success" : "btn-light text-muted border disabled");
+						var labelText = slot.IsHeldByCurrentUser ? "Đang chọn" : (slot.Status=="Open" ? "Còn trống": (slot.Status == "Hold" ? "Người khác giữ": "Đã đặt"));
+
+						<div class="col-6 col-sm-4">
+							<button type="button" 
+						  id="slot-btn-@slot.SlotId"
+                                        class="btn w-100 py-2 slot-btn @btnClass" 
+                                        data-slot-id="@slot.SlotId" 
+                                        data-time="@slot.StartTime.ToString(@"hh\:mm") - @slot.EndTime.ToString(@"hh\:mm")"
+                                        data-row-version="@slot.RowVersion"
+                                        @(slot.IsClickable ? "" : "disabled")>
+						  <div class="fw-bold">@slot.StartTime.ToString(@"hh\:mm") - @slot.EndTime.ToString(@"hh\:mm")</div>
+                                    <small class="slot-status-label d-block">@labelText</small>
+							</button>
+						</div>
+					}
+				</div>
+				</div>
+			</div>	
+		</div>
+		
+		<!--chieu-->
+		 <div class="col-md-6">
+            <div class="card border-1 h-100">
+                <div class="card-header bg-white py-3 border-0">
+                    <h5 class="fw-bold text-primary mb-0">Ca Chiều (13:00 - 17:00)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        @foreach (var slot in Model.AfternoonSlots)
+                        {
+                            <div class="col-6 col-sm-4">
+                                <button type="button" 
+                                        id="slot-btn-@slot.SlotId"
+                                        class="btn w-100 py-2 slot-btn @(slot.IsAvailable ? "btn-outline-success" : "btn-light text-muted border disabled")" 
+                                        data-slot-id="@slot.SlotId" 
+                                        data-time="@slot.StartTime.ToString(@"hh\:mm") - @slot.EndTime.ToString(@"hh\:mm")"
+                                        data-row-version="@slot.RowVersion"
+                                        @(slot.IsAvailable ? "" : "disabled")>
+                                    <div class="fw-bold">@slot.StartTime.ToString(@"hh\:mm") - @slot.EndTime.ToString(@"hh\:mm")</div>
+                                    <small class="slot-status-label d-block">@(slot.Status == "Open" ? "Còn trống" : (slot.Status == "Hold" ? "Đang giữ" : "Đã đặt"))</small>
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts{
+<script>
+	let countdownInterval = null;
+
+	//nếu sv trả đang có slot giữ
+	const initialSeconds = @Model.RemainingSeconds;
+	if (initialSeconds >0){
+		startCountdown(initialSeconds);
+	}
+	
+	document.querySelectorAll('.slot-btn').forEach(button => {
+	button.addEventListener('click', function(){
+		if(this.classList.contains('active')) return;
+		
+		const slotId = this.getAttribute('data-slot-id');
+		const rowVersion = this.getAttribute('data-row-version');
+		const timeRange = this.getAttribute('data-time');
+		holdSlot(slotId, rowVersion, timeRange, this);
+	});	
+});
+
+	function holdSlot(slotId, rowVersion, timeRange, element) {
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+    fetch('/Booking/HoldSlot', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'RequestVerificationToken': token
+        },
+        body: JSON.stringify({ slotId: parseInt(slotId), rowVersion: rowVersion })
+    })
+	.then(async response => {
+        const data = await response.json();
+        if (response.ok && data.success) {
+				//giai phong slot cu
+				if(data.releasedSlotId){
+					const prevBtn = document.getElementById('slot-btn-' + data.releasedSlotId);
+					if(prevBtn){
+						prevBtn.className = 'btn w-100 py-2 slot-btn btn-outline-success';
+						prevBtn.removeAttribute('disabled');
+                        prevBtn.querySelector('.slot-status-label').innerText = 'Còn trống';
+						
+						if (data.releasedNewRowVersion) {
+							prevBtn.setAttribute('data-row-version', data.releasedNewRowVersion);
+						}
+					}
+				}
+
+				//kich hoat slot moi
+				element.className = 'btn w-100 py-2 slot-btn btn-success active';
+				element.removeAttribute('disabled');
+				element.querySelector('.slot-status-label').innerText = 'Đang chọn';
+				if (data.newRowVersion) {
+					element.setAttribute('data-row-version', data.newRowVersion);
+				}
+
+				//cap nhat thanh canrh bao
+				 document.getElementById('heldTimeText').innerText = timeRange;
+				 startCountdown(data.expiresIn);
+			}else if (response.status === 409) {
+				element.className = 'btn w-100 py-2 slot-btn btn-light text-muted border disabled';
+				element.disabled = true;
+                element.querySelector('.slot-status-label').innerText = 'Người khác vừa giữ';
+				alert(data.message);
+			}else{
+				alert(data.message || 'Có lỗi xảy ra.');
+			}
+		}).catch(error => {
+			console.error('Error:', error);
+			alert('Lỗi kết nối khi giữ chỗ.');
+		});
+	}
+
+  function startCountdown(seconds) {
+	  const alertBox = document.getElementById('countdownAlert');
+		const timerDisplay = document.getElementById('timerDisplay');
+		alertBox.classList.remove('d-none');
+		
+		if(countdownInterval) clearInterval(countdownInterval);
+		
+		let remaining = seconds;
+		countdownInterval = setInterval(() => {
+			const m = Math.floor(remaining / 60);
+			const s = remaining % 60;	
+			   timerDisplay.innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+
+			if (remaining <= 0) {
+				clearInterval(countdownInterval);
+                alert('Thời gian giữ chỗ 10 phút đã hết hạn. Vui lòng chọn lại khung giờ khám.');
+                window.location.reload();
+			}
+		  remaining--;
+        }, 1000);
+    }
+</script>
+}

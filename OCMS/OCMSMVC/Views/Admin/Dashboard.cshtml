@@ -1,0 +1,108 @@
+﻿@model OCMSMVC.Models.AdminDashboardViewModel
+@using System.Text.Json
+
+@{
+    ViewData["Title"] = "Admin Analytics Dashboard";
+}
+
+<div class="container py-4">
+    <h2 class="fw-bold mb-4"><i class="fa-solid fa-chart-line text-primary me-2"></i>Thống Kê Vận Hành & Doanh Thu</h2>
+
+    <div class="row g-4 mb-5">
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 bg-primary text-white h-100">
+                <div class="card-body">
+                    <h6 class="card-title text-uppercase text-white-50">Tổng Doanh Thu</h6>
+                    <h3 class="fw-bold">@Model.TotalRevenue.ToString("N0") VNĐ</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 bg-success text-white h-100">
+                <div class="card-body">
+                    <h6 class="card-title text-uppercase text-white-50">Tổng Bệnh Nhân</h6>
+                    <h3 class="fw-bold">@Model.TotalPatients</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 bg-info text-white h-100">
+                <div class="card-body">
+                    <h6 class="card-title text-uppercase text-white-50">Tổng Lượt Khám</h6>
+                    <h3 class="fw-bold">@Model.TotalAppointments</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 bg-danger text-white h-100">
+                <div class="card-body">
+                    <h6 class="card-title text-uppercase text-white-50">Tỷ Lệ Hủy Lịch</h6>
+                    <h3 class="fw-bold">@Model.CancellationRate %</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold mb-4">Biểu đồ doanh thu năm nay</h5>
+                    <canvas id="revenueChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold mb-4">Lượt khám theo chuyên khoa</h5>
+                    <canvas id="deptChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        const revLabels = @Html.Raw(JsonSerializer.Serialize(Model.RevenueByMonth.Keys));
+        const revData = @Html.Raw(JsonSerializer.Serialize(Model.RevenueByMonth.Values));
+
+        const deptLabels = @Html.Raw(JsonSerializer.Serialize(Model.AppointmentsByDepartment.Keys));
+        const deptData = @Html.Raw(JsonSerializer.Serialize(Model.AppointmentsByDepartment.Values));
+
+        new Chart(document.getElementById('revenueChart'), {
+            type: 'bar',
+            data: {
+                labels: revLabels,
+                datasets: [{
+                    label: 'Doanh thu (VNĐ)',
+                    data: revData,
+                    backgroundColor: 'rgba(13, 110, 253, 0.7)',
+                    borderColor: 'rgba(13, 110, 253, 1)',
+                    borderWidth: 1,
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+
+        new Chart(document.getElementById('deptChart'), {
+            type: 'doughnut',
+            data: {
+                labels: deptLabels,
+                datasets: [{
+                    data: deptData,
+                    backgroundColor: ['#198754', '#0dcaf0', '#ffc107', '#dc3545', '#6610f2', '#fd7e14', '#20c997']
+                }]
+            },
+            options: { responsive: true, cutout: '60%' }
+        });
+    </script>
+}

@@ -1,0 +1,314 @@
+@model List<OCMSMVC.Models.DoctorScheduleItemViewModel>
+@{
+    ViewData["Title"] = "Quản lý Lịch trực Bác sĩ";
+    DateTime viewDate = ViewBag.ViewDate is DateTime vd ? vd : DateTime.Today;
+    DateTime today = ViewBag.Today is DateTime td ? td : DateTime.Today;
+    string prevDate = ViewBag.PrevDate as string ?? viewDate.AddDays(-1).ToString("yyyy-MM-dd");
+    string nextDate = ViewBag.NextDate as string ?? viewDate.AddDays(1).ToString("yyyy-MM-dd");
+    string? firstDate = ViewBag.FirstDate as string;
+    string? lastDate = ViewBag.LastDate as string;
+    string windowStart = ViewBag.WindowStart as string ?? today.AddDays(-14).ToString("yyyy-MM-dd");
+    string windowEnd = ViewBag.WindowEnd as string ?? today.AddDays(14).ToString("yyyy-MM-dd");
+
+    bool atWindowStart = viewDate.ToString("yyyy-MM-dd") == windowStart;
+    bool atWindowEnd = viewDate.ToString("yyyy-MM-dd") == windowEnd;
+
+    string[] days = { "Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy" };
+    string dayLabel = days[(int)viewDate.DayOfWeek];
+    bool isToday = viewDate.Date == today.Date;
+}
+
+<div class="container py-3">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+        <h3 class="fw-bold text-primary mb-0">
+            <i class="bi bi-calendar2-week me-2"></i>Lịch trực &amp; Khung giờ khám
+        </h3>
+        <a asp-action="Register" class="btn btn-primary px-3 shadow-sm">
+            <i class="bi bi-plus-circle me-1"></i>Đăng ký ca trực mới
+        </a>
+    </div>
+
+    <!-- Alert Messages -->
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <!-- Thanh điều hướng ngày -->
+    <div class="d-flex justify-content-center align-items-center gap-2 mb-3">
+        <!-- Nhảy về ca có ngày đầu tiên -->
+        @if (firstDate != null && viewDate.ToString("yyyy-MM-dd") != firstDate)
+        {
+            <a asp-action="Index" asp-route-date="@firstDate" class="btn btn-sm btn-outline-secondary" title="Ca đầu tiên">
+                <i class="bi bi-chevron-double-left"></i>
+            </a>
+        }
+        else
+        {
+            <button class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-chevron-double-left"></i></button>
+        }
+
+        <!-- Lùi 1 ngày -->
+        @if (!atWindowStart)
+        {
+            <a asp-action="Index" asp-route-date="@prevDate" class="btn btn-sm btn-outline-secondary" title="Ngày trước">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+        }
+        else
+        {
+            <button class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-chevron-left"></i></button>
+        }
+
+        <!-- Hiển thị ngày hiện tại -->
+        <div class="px-3 py-1 rounded border bg-white shadow-sm text-center" style="min-width: 170px;">
+            <div class="fw-bold @(isToday ? "text-primary" : "")">
+                @dayLabel, @viewDate.ToString("dd/MM/yyyy")
+                @if (isToday)
+                {
+                    <span class="badge bg-primary ms-1" style="font-size:0.65rem;">Hôm nay</span>
+                }
+            </div>
+        </div>
+
+        <!-- Tiến 1 ngày -->
+        @if (!atWindowEnd)
+        {
+            <a asp-action="Index" asp-route-date="@nextDate" class="btn btn-sm btn-outline-secondary" title="Ngày tiếp">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        }
+        else
+        {
+            <button class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-chevron-right"></i></button>
+        }
+
+        <!-- Nhảy đến ca có ngày cuối cùng -->
+        @if (lastDate != null && viewDate.ToString("yyyy-MM-dd") != lastDate)
+        {
+            <a asp-action="Index" asp-route-date="@lastDate" class="btn btn-sm btn-outline-secondary" title="Ca cuối cùng">
+                <i class="bi bi-chevron-double-right"></i>
+            </a>
+        }
+        else
+        {
+            <button class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-chevron-double-right"></i></button>
+        }
+
+        <!-- Nút về hôm nay (chỉ hiện khi không phải hôm nay) -->
+        @if (!isToday)
+        {
+            <a asp-action="Index" class="btn btn-sm btn-outline-primary ms-2" title="Về hôm nay">
+                <i class="bi bi-calendar-check"></i>
+            </a>
+        }
+    </div>
+
+    <!-- Bảng hiển thị danh sách ca -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            @if (Model == null || !Model.Any())
+            {
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-calendar-x fs-1 text-secondary opacity-50 d-block mb-3"></i>
+                    <p class="mb-3 fs-6">Không có ca trực nào vào ngày này.</p>
+                    <a asp-action="Register" class="btn btn-sm btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i>Đăng ký ca trực mới
+                    </a>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Ngày làm việc</th>
+                                <th>Ca trực</th>
+                                <th>Phòng khám</th>
+                                <th class="text-center">Số Slot (15p)</th>
+                                <th class="text-center">Trạng thái</th>
+                                <th class="text-end pe-3">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var s in Model)
+                            {
+                                bool isPast = s.WorkDate.Date < DateTime.Today;
+                                <tr class="@(isPast ? "text-muted" : "")">
+                                    <td class="ps-3 fw-medium">
+                                        <div class="d-flex align-items-center">
+                                            <div class="calendar-badge me-2 text-center p-1 bg-light rounded border" style="min-width: 48px;">
+                                                <small class="d-block text-uppercase text-muted" style="font-size: 0.7rem;">Tháng @s.WorkDate.Month</small>
+                                                <strong class="fs-6">@s.WorkDate.Day</strong>
+                                            </div>
+                                            <div>
+                                                <div>
+                                                    @s.WorkDate.ToString("dd/MM/yyyy")
+                                                    @if (s.WorkDate.Date == DateTime.Today)
+                                                    {
+                                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1">Hôm nay</span>
+                                                    }
+                                                </div>
+                                                <small class="text-muted">
+                                                    @{
+                                                        string dayOfWeekStr = s.WorkDate.DayOfWeek switch
+                                                        {
+                                                            DayOfWeek.Monday => "Thứ Hai",
+                                                            DayOfWeek.Tuesday => "Thứ Ba",
+                                                            DayOfWeek.Wednesday => "Thứ Tư",
+                                                            DayOfWeek.Thursday => "Thứ Năm",
+                                                            DayOfWeek.Friday => "Thứ Sáu",
+                                                            DayOfWeek.Saturday => "Thứ Bảy",
+                                                            DayOfWeek.Sunday => "Chủ Nhật",
+                                                            _ => ""
+                                                        };
+                                                    }
+                                                    @dayOfWeekStr
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if (s.ShiftType == "Morning")
+                                        {
+                                            <span class="badge bg-warning text-dark"><i class="bi bi-sun me-1"></i>Sáng (07:30 - 11:30)</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-info text-dark"><i class="bi bi-sunset me-1"></i>Chiều (13:00 - 17:00)</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="fw-semibold text-secondary">
+                                            <i class="bi bi-door-closed me-1"></i>Phòng @s.RoomNumber
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge @(s.BookedSlotsCount > 0 ? "bg-primary" : "bg-secondary")">
+                                            @s.BookedSlotsCount / @s.MaxQuota đã đặt
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        @if (isPast)
+                                        {
+                                            <span class="badge bg-secondary">Đã kết thúc</span>
+                                        }
+                                        else if (s.Status == "Active")
+                                        {
+                                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Đang hoạt động</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Đã hủy</span>
+                                        }
+                                    </td>
+                                    <td class="text-end pe-3">
+                                        <button type="button" class="btn btn-sm btn-outline-info me-1" data-bs-toggle="modal" data-bs-target="#slotsModal-@s.Id">
+                                            <i class="bi bi-clock-history me-1"></i>16 Slot
+                                        </button>
+                                        @if (s.CanCancel)
+                                        {
+                                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal-@s.Id">
+                                                <i class="bi bi-calendar-x me-1"></i>Hủy ca
+                                            </button>
+                                        }
+                                        else if (s.Status == "Active" && s.BookedSlotsCount > 0 && !isPast)
+                                        {
+                                            <span class="badge bg-light text-muted border">
+                                                <i class="bi bi-lock-fill me-1"></i>Đã có hẹn
+                                            </span>
+                                        }
+                                    </td>
+                                </tr>
+
+                                <!-- Modal Chi tiết 16 Slot -->
+                                <div class="modal fade" id="slotsModal-@s.Id" tabindex="-1" aria-labelledby="slotsModalLabel-@s.Id" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered modal-lg">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-light">
+                                                <h6 class="modal-title fw-bold" id="slotsModalLabel-@s.Id">
+                                                    <i class="bi bi-clock me-1 text-primary"></i>Chi tiết 16 Slot Khám — @s.WorkDate.ToString("dd/MM/yyyy") (@s.ShiftDisplayName)
+                                                </h6>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="row g-2">
+                                                    @foreach (var slot in s.TimeSlots)
+                                                    {
+                                                        <div class="col-6 col-md-3">
+                                                            <div class="p-2 border rounded text-center @(slot.Status == "Open" ? "border-success bg-success-subtle text-success" : (slot.Status == "Booked" ? "border-primary bg-primary-subtle text-primary" : "border-secondary bg-light text-muted"))">
+                                                                <small class="d-block fw-bold">@slot.TimeDisplay</small>
+                                                                <span class="badge @(slot.Status == "Open" ? "bg-success" : (slot.Status == "Booked" ? "bg-primary" : "bg-secondary"))" style="font-size: 0.7rem;">
+                                                                    @(slot.Status == "Open" ? "Trống (Open)" : (slot.Status == "Booked" ? "Đã đặt (Booked)" : slot.Status))
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Modal Xác nhận Hủy Ca Trực -->
+                                @if (s.CanCancel)
+                                {
+                                    <div class="modal fade" id="cancelModal-@s.Id" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content">
+                                                <form asp-action="Cancel" method="post">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@s.Id" />
+                                                    <input type="hidden" name="date" value="@viewDate.ToString("yyyy-MM-dd")" />
+                                                    <div class="modal-header bg-danger text-white">
+                                                        <h6 class="modal-title fw-bold">
+                                                            <i class="bi bi-exclamation-triangle-fill me-2"></i>Xác nhận Hủy Ca Trực Khẩn Cấp
+                                                        </h6>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <p class="mb-2">Bạn có chắc chắn muốn hủy ca trực sau vì lý do cá nhân / khẩn cấp?</p>
+                                                        <div class="p-3 bg-light rounded border mb-3">
+                                                            <div><strong>Ngày:</strong> @s.WorkDate.ToString("dd/MM/yyyy")</div>
+                                                            <div><strong>Ca:</strong> @s.ShiftDisplayName</div>
+                                                            <div><strong>Phòng:</strong> Phòng @s.RoomNumber</div>
+                                                            <div><strong>Tình trạng:</strong> Chưa có bệnh nhân đặt hẹn (0/@s.MaxQuota)</div>
+                                                        </div>
+                                                        <small class="text-danger d-block">
+                                                            <i class="bi bi-info-circle me-1"></i>Sau khi hủy, tất cả 16 slot khám của ca này sẽ đóng lại và không nhận lịch hẹn nữa.
+                                                        </small>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Không hủy</button>
+                                                        <button type="submit" class="btn btn-danger btn-sm">
+                                                            <i class="bi bi-trash me-1"></i>Xác nhận Hủy Ca
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>

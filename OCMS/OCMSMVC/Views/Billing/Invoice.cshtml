@@ -1,0 +1,61 @@
+@model OCMSMVC.Models.BillingInvoiceViewModel
+@{
+    ViewData["Title"] = "Quyết toán";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div><p class="text-uppercase text-primary fw-semibold small mb-1">Thu ngân · Lượt #@Model.Appointment.Id</p><h1 class="h3 mb-0">Hóa đơn quyết toán</h1></div>
+    <a class="btn btn-outline-secondary" asp-action="Index">Quay lại</a>
+</div>
+@if (TempData["ErrorMessage"] is string error) { <div class="alert alert-danger">@error</div> }
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6"><div class="text-muted small">Bệnh nhân</div><div class="fw-semibold">@Model.Appointment.Patient.User.FullName</div><div class="small">@Model.Appointment.Patient.User.PhoneNumber</div></div>
+                    <div class="col-md-6"><div class="text-muted small">Bác sĩ</div><div class="fw-semibold">@Model.Appointment.Doctor.AcademicTitle @Model.Appointment.Doctor.User.FullName</div><div class="small">@Model.Appointment.Doctor.Department.Name</div></div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead class="table-light"><tr><th>Khoản phí</th><th>Nhóm</th><th class="text-end">Thành tiền</th></tr></thead>
+                        <tbody>
+                        @foreach (var line in Model.Lines)
+                        {
+                            <tr><td>@line.Description</td><td><span class="badge text-bg-light">@line.Category</span></td><td class="text-end">@line.Amount.ToString("N0") ₫</td></tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="d-flex justify-content-between py-2"><span>Tổng chi phí</span><strong>@Model.TotalAmount.ToString("N0") ₫</strong></div>
+                <div class="d-flex justify-content-between py-2 text-success"><span>Đã thanh toán trước</span><strong>− @Model.PrepaidDeposit.ToString("N0") ₫</strong></div>
+                <hr />
+                <div class="d-flex justify-content-between fs-5"><span>Còn phải thu</span><strong class="text-primary">@Model.RemainingAmount.ToString("N0") ₫</strong></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm"><div class="card-body">
+            <h2 class="h5">Xác nhận thu tiền</h2>
+            @if (Model.IsAlreadySettled)
+            {
+                <div class="alert alert-success mb-0">Lượt khám đã được quyết toán.</div>
+            }
+            else
+            {
+                <p class="text-muted small">Thu đủ số dư còn lại. Nếu số dư bằng 0, xác nhận để lưu giao dịch và in biên nhận 0 đồng.</p>
+                <form asp-action="Settle" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="AppointmentId" value="@Model.Appointment.Id" />
+                    <label class="form-label" for="PaymentMethod">Phương thức</label>
+                    <select class="form-select mb-3" id="PaymentMethod" name="PaymentMethod" required>
+                        <option value="Cash">Tiền mặt</option>
+                        <option value="POS">Thẻ qua POS</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-check2-circle me-1"></i>Hoàn tất quyết toán</button>
+                </form>
+            }
+        </div></div>
+    </div>
+</div>

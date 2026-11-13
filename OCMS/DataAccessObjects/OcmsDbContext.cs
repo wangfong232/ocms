@@ -75,6 +75,18 @@ namespace DataAccessObjects
                           .WithOne(a => a.Feedback)
                           .HasForeignKey<Feedback>(f => f.AppointmentId);
 
+            modelBuilder.Entity<Payment>()
+                .HasOne(p => p.Cashier)
+                .WithMany()
+                .HasForeignKey(p => p.CashierId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<PrescriptionDetail>()
+                .HasOne(p => p.DispensedBy)
+                .WithMany()
+                .HasForeignKey(p => p.DispensedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // Concurrency token 
             modelBuilder.Entity<TimeSlot>().Property(t => t.RowVersion).IsRowVersion();
         }

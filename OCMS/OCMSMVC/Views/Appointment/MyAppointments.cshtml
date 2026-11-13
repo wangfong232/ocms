@@ -1,0 +1,306 @@
+@model OCMSMVC.Models.MyAppointmentsViewModel
+@{
+	ViewData["Title"] = "Lịch Hẹn Của Tôi";
+}
+
+<div class="container py-4">
+	<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 border-bottom">
+		<div>
+			<h3 class="fw-bold text-primary mb-1">
+				Lịch Hẹn Khám Bệnh Của Tôi
+			</h3>
+			<p class="text-muted mb-0">
+				Xin chào, <strong>@Model.PatientFullName</strong>! Quản lý và theo dõi lịch khám, đổi lịch hoặc hủy hẹn trực tuyến.
+			</p>
+		</div>
+		<div class="mt-2 mt-md-0">
+			<a asp-controller="Booking" asp-action="Search" class="btn btn-primary btn-sm px-3">
+				Đặt lịch khám mới
+			</a>
+		</div>
+	</div>
+
+	@if (TempData["SuccessMessage"] != null)
+	{
+		<div class="alert alert-success alert-dismissible fade show border-1 py-2" role="alert">
+			<span>@TempData["SuccessMessage"]</span>
+			<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+		</div>
+	}
+	@if (TempData["ErrorMessage"] != null)
+	{
+		<div class="alert alert-danger alert-dismissible fade show border-1 py-2" role="alert">
+			<span>@TempData["ErrorMessage"]</span>
+			<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+		</div>
+	}
+
+	<!-- Tabs Navigation -->
+	<ul class="nav nav-pills mb-4 nav-justified bg-light p-1 rounded-2 border" id="appointmentTabs" role="tablist">
+		<li class="nav-item" role="presentation">
+			<button class="nav-link active fw-semibold py-2" id="upcoming-tab" data-bs-toggle="pill" data-bs-target="#upcoming" type="button" role="tab">
+				Lịch hẹn sắp tới <span class="badge bg-primary rounded-pill ms-1">@Model.UpcomingAppointments.Count</span>
+			</button>
+		</li>
+		<li class="nav-item" role="presentation">
+			<button class="nav-link fw-semibold py-2" id="history-tab" data-bs-toggle="pill" data-bs-target="#history" type="button" role="tab">
+				Lịch sử khám & Đã hủy <span class="badge bg-secondary rounded-pill ms-1">@Model.PastAppointments.Count</span>
+			</button>
+		</li>
+	</ul>
+
+	<div class="tab-content" id="appointmentTabsContent">
+		<!-- Tab 1: Upcoming -->
+		<div class="tab-pane fade show active" id="upcoming" role="tabpanel">
+			@if (Model.UpcomingAppointments.Count == 0)
+			{
+				<div class="card border-1 p-5 text-center my-3 bg-light rounded-3">
+					<h6 class="fw-bold text-secondary mb-1">Bạn hiện không có lịch hẹn khám sắp tới nào</h6>
+					<p class="text-muted small mb-3">Khám phá danh sách các chuyên khoa và đặt lịch khám với các bác sĩ chuyên khoa ngay hôm nay.</p>
+					<div>
+						<a asp-controller="Booking" asp-action="Search" class="btn btn-sm btn-outline-primary px-3">
+							Tìm bác sĩ & Đặt lịch
+						</a>
+					</div>
+				</div>
+			}
+			else
+			{
+				<div class="row g-4">
+					@foreach (var item in Model.UpcomingAppointments)
+					{
+						var docName = item.DoctorName;
+						if (!string.IsNullOrEmpty(item.AcademicTitle) && docName.StartsWith("BS.", StringComparison.OrdinalIgnoreCase))
+						{
+							docName = docName.Substring(3).Trim();
+						}
+						var docFullTitle = string.IsNullOrEmpty(item.AcademicTitle) ? docName : $"{item.AcademicTitle} {docName}";
+
+						<div class="col-lg-6">
+							<div class="card border-1 h-100 rounded-3">
+								<div class="card-header bg-white pt-3 pb-2 d-flex justify-content-between align-items-center border-0">
+									<span class="badge @item.StatusBadgeClass px-2 py-1">
+										@item.StatusDisplayName
+									</span>
+									<span class="text-muted small">
+										Mã số: <strong class="font-monospace text-dark">#@item.AppointmentId</strong>
+									</span>
+								</div>
+								<div class="card-body pt-1 pb-3">
+									<div class="mb-3">
+										<h5 class="fw-bold mb-1 text-dark">@docFullTitle</h5>
+										<span class="text-primary fw-semibold small">@item.DepartmentName</span>
+										<span class="text-muted small ms-1">• Phòng @item.RoomNumber</span>
+									</div>
+
+									<div class="bg-light p-3 rounded-2 mb-3">
+										<div class="row g-2 small">
+											<div class="col-6">
+												<span class="text-muted">Ngày khám:</span>
+												<div class="fw-bold text-dark fs-6">@item.AppointmentDate.ToString("dd/MM/yyyy")</div>
+											</div>
+											<div class="col-6">
+												<span class="text-muted">Giờ khám:</span>
+												<div class="fw-bold text-success fs-6">@item.StartTime.ToString(@"hh\:mm") - @item.EndTime.ToString(@"hh\:mm")</div>
+											</div>
+											<div class="col-6 mt-2">
+												<span class="text-muted">Phí khám:</span>
+												<div class="fw-bold text-dark">@item.ConsultationFee.ToString("N0") VNĐ</div>
+											</div>
+											<div class="col-6 mt-2">
+												<span class="text-muted">Đổi lịch:</span>
+												<div>
+													@if (item.RescheduledCount > 0)
+													{
+														<span class="badge bg-warning text-dark">Đã đổi 1/1 lần</span>
+													}
+													else
+													{
+														<span class="text-muted">Chưa đổi (còn 1 lần)</span>
+													}
+												</div>
+											</div>
+										</div>
+
+										@if (!string.IsNullOrEmpty(item.Reason))
+										{
+											<div class="mt-2 pt-2 border-top small text-muted">
+												<span>Triệu chứng:</span> <span class="text-dark">@item.Reason</span>
+											</div>
+										}
+									</div>
+
+
+									<div class="small text-muted mb-2">
+										@if (item.IsEligibleForRefund)
+										{
+											<span>Còn <strong>@item.HoursUntilAppointment.ToString("F0")h</strong> tới giờ khám: Được hoàn 100% tiền cọc nếu hủy (trước 24h).</span>
+										}
+										else
+										{
+											<span>Còn <strong>@item.HoursUntilAppointment.ToString("F1")h</strong> tới giờ khám (dưới 24h): Hủy hẹn không được hoàn tiền cọc.</span>
+										}
+									</div>
+								</div>
+
+								<div class="card-footer bg-white border-top p-3">
+									<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center">
+										<div>
+											<a asp-action="Ticket" asp-route-id="@item.AppointmentId" class="btn btn-sm btn-outline-primary" target="_blank">
+												Vé QR
+											</a>
+										</div>
+										<div class="d-flex gap-2">
+											@if (item.CanReschedule)
+											{
+												<a asp-action="Reschedule" asp-route-id="@item.AppointmentId" class="btn btn-sm btn-outline-secondary">
+													Đổi lịch khám
+												</a>
+											}
+											else
+											{
+												<button type="button" class="btn btn-sm btn-light text-muted border" disabled title="Mỗi lịch hẹn chỉ được đổi lịch tối đa 1 lần">
+													Hết lượt đổi
+												</button>
+											}
+
+											@if (item.CanCancel)
+											{
+												<button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal-@item.AppointmentId">
+													Hủy hẹn
+												</button>
+											}
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- Cancel Modal -->
+						<div class="modal fade" id="cancelModal-@item.AppointmentId" tabindex="-1">
+							<div class="modal-dialog modal-dialog-centered">
+								<div class="modal-content border-1">
+									<form asp-action="Cancel" method="post">
+										<input type="hidden" name="AppointmentId" value="@item.AppointmentId" />
+
+										<div class="modal-header border-bottom py-3">
+											<h6 class="modal-title fw-bold">Xác nhận hủy lịch hẹn #@item.AppointmentId</h6>
+											<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+										</div>
+										<div class="modal-body p-4">
+											<p class="mb-3">
+												Bạn có chắc chắn muốn hủy lịch khám với <strong>@docFullTitle</strong> vào ngày <strong>@item.AppointmentDate.ToString("dd/MM/yyyy")</strong> lúc <strong>@item.StartTime.ToString(@"hh\:mm")</strong>?
+											</p>
+
+											@if (item.IsEligibleForRefund)
+											{
+												<div class="alert alert-success py-2 small mb-3 border-1">
+													Thời gian hủy trước giờ hẹn trên 24 giờ. Bạn sẽ được hoàn lại 100% tiền đặt cọc.
+												</div>
+											}
+											else
+											{
+												<div class="alert alert-warning py-2 small mb-3 border-1">
+													Thời gian hủy dưới 24 giờ trước giờ hẹn. Tiền đặt cọc sẽ không được hoàn lại theo quy định.
+												</div>
+											}
+
+											<div class="mb-2">
+												<label class="form-label small text-muted mb-1">Lý do hủy (tùy chọn):</label>
+												<textarea name="CancellationReason" class="form-control form-control-sm" rows="3" placeholder="Nhập lý do hủy lịch khám..."></textarea>
+											</div>
+										</div>
+										<div class="modal-footer bg-light py-2">
+											<button type="button" class="btn btn-sm btn-light border" data-bs-dismiss="modal">Đóng</button>
+											<button type="submit" class="btn btn-sm btn-danger px-3">Xác nhận hủy</button>
+										</div>
+									</form>
+								</div>
+							</div>
+						</div>
+					}
+				</div>
+			}
+		</div>
+
+		<!-- Tab 2: History -->
+		<div class="tab-pane fade" id="history" role="tabpanel">
+			@if (Model.PastAppointments.Count == 0)
+			{
+				<div class="card border-1 p-5 text-center my-3 bg-light rounded-3">
+					<h6 class="fw-bold text-secondary mb-0">Chưa có lịch sử khám hoặc lịch hẹn đã hủy</h6>
+				</div>
+			}
+			else
+			{
+				<div class="table-responsive rounded-3 border bg-white">
+					<table class="table table-hover align-middle mb-0">
+						<thead class="table-light text-muted small">
+							<tr>
+								<th class="ps-3">Mã hẹn</th>
+								<th>Bác sĩ</th>
+								<th>Chuyên khoa</th>
+								<th>Ngày & Giờ</th>
+								<th>Phí khám</th>
+								<th>Trạng thái</th>
+								<th>Ghi chú / Lý do hủy</th>
+								<th class="text-end pe-3">Thao tác</th>
+							</tr>
+						</thead>
+						<tbody>
+							@foreach (var p in Model.PastAppointments)
+							{
+								var pDocName = p.DoctorName;
+								if (!string.IsNullOrEmpty(p.AcademicTitle) && pDocName.StartsWith("BS.", StringComparison.OrdinalIgnoreCase))
+								{
+									pDocName = pDocName.Substring(3).Trim();
+								}
+								var pDocFullTitle = string.IsNullOrEmpty(p.AcademicTitle) ? pDocName : $"{p.AcademicTitle} {pDocName}";
+
+								<tr>
+									<td class="ps-3 font-monospace fw-bold text-dark">#@p.AppointmentId</td>
+									<td>
+										<div class="fw-semibold">@pDocFullTitle</div>
+										<small class="text-muted">Phòng @p.RoomNumber</small>
+									</td>
+									<td><span class="badge bg-light text-dark border">@p.DepartmentName</span></td>
+									<td>
+										<div>@p.AppointmentDate.ToString("dd/MM/yyyy")</div>
+										<small class="text-muted">@p.StartTime.ToString(@"hh\:mm") - @p.EndTime.ToString(@"hh\:mm")</small>
+									</td>
+									<td class="fw-bold text-dark">@p.ConsultationFee.ToString("N0") đ</td>
+									<td>
+										<span class="badge @p.StatusBadgeClass px-2 py-1">
+											@p.StatusDisplayName
+										</span>
+									</td>
+									<td>
+										@if (p.Status == "Cancelled")
+										{
+											<small class="text-danger">
+												@(p.CancellationReason ?? "Bệnh nhân yêu cầu hủy")
+											</small>
+										}
+										else if (!string.IsNullOrEmpty(p.Reason))
+										{
+											<small class="text-muted">@p.Reason</small>
+										}
+										else
+										{
+											<span class="text-muted small">-</span>
+										}
+									</td>
+									<td class="text-end pe-3">
+										<a asp-action="Ticket" asp-route-id="@p.AppointmentId" class="btn btn-sm btn-outline-secondary" target="_blank">
+											Chi tiết
+										</a>
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</div>
+	</div>
+</div>
