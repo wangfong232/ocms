@@ -40,14 +40,7 @@ namespace Repositories
                 return (false, null);
             }
 
-            /*
-             UPDATE [Slots]
-            SET [IsBooked] = @Current_IsBooked, ...
-            WHERE [SlotId] = @SlotId AND [RowVersion] = @Original_RowVersion;
-             */
             context.Entry(slot).Property(s => s.RowVersion).OriginalValue = expectedRowVersion;
-
-
             slot.Status = "Hold";
             try
             {
@@ -56,6 +49,22 @@ namespace Repositories
             }
             catch (DbUpdateConcurrencyException)
             {
+                // Concurrency token cũ (ví dụ do người khác vừa đổi slot và nhả slot này ra).
+                // Kiểm tra lại: nếu slot hiện tại trong DB vẫn đang là "Open" thì nạp lại RowVersion mới và cho phép giữ chỗ!
+                await context.Entry(slot).ReloadAsync();
+                if (slot != null && slot.Status == "Open")
+                {
+                    slot.Status = "Hold";
+                    try
+                    {
+                        await context.SaveChangesAsync();
+                        return (true, Convert.ToBase64String(slot.RowVersion));
+                    }
+                    catch (DbUpdateConcurrencyException)
+                    {
+                        return (false, null);
+                    }
+                }
                 return (false, null);
             }
         }

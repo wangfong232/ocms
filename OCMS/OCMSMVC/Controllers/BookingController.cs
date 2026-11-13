@@ -1,8 +1,13 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using OCMSMVC.Hubs;
 using OCMSMVC.Models;
 using Repositories;
 using Services;
-using System.Security.Cryptography.Xml;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace OCMSMVC.Controllers
 {
@@ -11,21 +16,21 @@ namespace OCMSMVC.Controllers
         private readonly IBookingService bookingService;
         private readonly ICapacityEngine capacityEngine;
         private readonly ITimeSlotRepository timeSlotRepository;
+        private readonly IHubContext<BookingHub> hubContext;
 
         public BookingController(
           IBookingService bookingService,
           ICapacityEngine capacityEngine,
-          ITimeSlotRepository timeSlotRepository)
+          ITimeSlotRepository timeSlotRepository,
+          IHubContext<BookingHub> hubContext)
         {
             this.bookingService = bookingService;
             this.capacityEngine = capacityEngine;
             this.timeSlotRepository = timeSlotRepository;
+            this.hubContext = hubContext;
         }
 
-        public IActionResult Index()
-        {
-            return View();
-        }
+        public IActionResult Index() => View();
 
         [HttpGet]
         public async Task<IActionResult> DoctorDirectory(int? specialtyId, int? departmentId, string? term, DateTime? targetDate, DateTime? date, int? doctorId)
@@ -40,22 +45,26 @@ namespace OCMSMVC.Controllers
         public async Task<IActionResult> Search(int? departmentId, string? term, DateTime? date)
         {
             var targetDate = date?.Date ?? DateTime.Today;
+            // Chặn tìm kiếm ngày trong quá khứ
             if (targetDate < DateTime.Today)
             {
                 targetDate = DateTime.Today;
+                TempData["ErrorMessage"] = "Không thể tìm kiếm lịch khám trong quá khứ. Đã chuyển về ngày hôm nay.";
             }
 
             var deparments = await bookingService.GetSpecialtiesAsync();
             var doctors = await bookingService.SearchDoctorAsync(departmentId, term);
-
             var doctorCards = new List<DoctorCardItem>();
+            var nowTime = DateTime.Now.TimeOfDay;
+            var isToday = targetDate == DateTime.Today;
 
             foreach (var doc in doctors)
             {
                 var slots = await timeSlotRepository.GetSlotsByDoctorAndDateAsync(doc.Id, targetDate);
+                var validSlots = isToday ? slots.Where(s => s.StartTime > nowTime).ToList() : slots;
 
-                var morningSlots = slots.Where(s => s.StartTime < new TimeSpan(12, 0, 0));
-                var afternoonSlots = slots.Where(s => s.StartTime >= new TimeSpan(12, 0, 0));
+                var morningSlots = validSlots.Where(s => s.StartTime < new TimeSpan(12, 0, 0));
+                var afternoonSlots = validSlots.Where(s => s.StartTime >= new TimeSpan(12, 0, 0));
 
                 doctorCards.Add(new DoctorCardItem
                 {
@@ -70,32 +79,36 @@ namespace OCMSMVC.Controllers
                 });
             }
 
-            var model = new DoctorSearchViewModel
+            return View(new DoctorSearchViewModel
             {
                 SelectedDepartmentId = departmentId,
                 SearchTerm = term,
                 TargetDate = targetDate,
                 Departments = deparments,
                 DoctorCards = doctorCards
-            };
-
-            return View(model);
+            });
         }
 
         [HttpGet]
         public async Task<IActionResult> SelectSlot(int doctorId, DateTime? date)
         {
             var targetDate = date?.Date ?? DateTime.Today;
-            var doctor = await bookingService.GetDoctorWithDaySlotsAsync(doctorId, targetDate);
 
+            // Chặn URL ngày quá khứ
+            if (targetDate < DateTime.Today)
+            {
+                TempData["ErrorMessage"] = "Không thể đặt lịch khám trong quá khứ. Đã tự động chuyển về ngày hôm nay.";
+                return RedirectToAction(nameof(SelectSlot), new { doctorId, date = DateTime.Today.ToString("yyyy-MM-dd") });
+            }
+
+            var doctor = await bookingService.GetDoctorWithDaySlotsAsync(doctorId, targetDate);
             if (doctor == null)
             {
                 TempData["ErrorMessage"] = "Không tìm thấy thông tin bác sĩ.";
-                return RedirectToAction("Search");
+                return RedirectToAction(nameof(Search));
             }
 
             var slots = await timeSlotRepository.GetSlotsByDoctorAndDateAsync(doctorId, targetDate);
-
             int? heldSlotId = HttpContext.Session.GetInt32("HeldSlotId");
             string? heldExpiresAtStr = HttpContext.Session.GetString("HeldExpiresAt");
             int remainingSeconds = 0;
@@ -112,6 +125,7 @@ namespace OCMSMVC.Controllers
                     else
                     {
                         await bookingService.ReleaseSlotAsync(heldSlotId.Value);
+                        await hubContext.Clients.All.SendAsync("SlotStatusChanged", new { slotId = heldSlotId.Value, status = "Open" });
                         HttpContext.Session.Remove("HeldSlotId");
                         HttpContext.Session.Remove("HeldExpiresAt");
                         heldSlotId = null;
@@ -119,19 +133,28 @@ namespace OCMSMVC.Controllers
                 }
             }
 
-            var slotGridItems = slots.Select(s => new SlotGridItem
+            var nowTime = DateTime.Now.TimeOfDay;
+            var isToday = targetDate == DateTime.Today;
+
+            var slotGridItems = slots.Select(s =>
             {
-                SlotId = s.Id,
-                StartTime = s.StartTime,
-                EndTime = s.EndTime,
-                Status = s.Status,
-                RowVersion = Convert.ToBase64String(s.RowVersion),
-                IsHeldByCurrentUser = (heldSlotId.HasValue && s.Id == heldSlotId.Value)
+                bool isPast = isToday && s.StartTime <= nowTime;
+                string effectiveStatus = isPast ? "Past" : s.Status;
+
+                return new SlotGridItem
+                {
+                    SlotId = s.Id,
+                    StartTime = s.StartTime,
+                    EndTime = s.EndTime,
+                    Status = effectiveStatus,
+                    RowVersion = Convert.ToBase64String(s.RowVersion),
+                    IsHeldByCurrentUser = !isPast && (heldSlotId.HasValue && s.Id == heldSlotId.Value)
+                };
             }).ToList();
 
             var currentHeldSlot = slotGridItems.FirstOrDefault(s => s.IsHeldByCurrentUser);
 
-            var model = new SelectSlotViewModel
+            return View(new SelectSlotViewModel
             {
                 DoctorId = doctor.Id,
                 DoctorName = doctor.User.FullName,
@@ -141,14 +164,11 @@ namespace OCMSMVC.Controllers
                 SelectedDate = targetDate,
                 MorningSlots = slotGridItems.Where(s => s.StartTime < new TimeSpan(12, 0, 0)).ToList(),
                 AfternoonSlots = slotGridItems.Where(s => s.StartTime >= new TimeSpan(12, 0, 0)).ToList(),
-                DayCapacity = capacityEngine.CalculateShiftMetrics(slots),
+                DayCapacity = capacityEngine.CalculateShiftMetrics(slots.Where(s => !(isToday && s.StartTime <= nowTime))),
                 CurrentHeldSlot = currentHeldSlot,
                 RemainingSeconds = remainingSeconds
-            };
-
-            return View(model);
+            });
         }
-
 
         [HttpPost]
         public async Task<IActionResult> HoldSlot([FromBody] HoldSlotPostModel request)
@@ -158,6 +178,19 @@ namespace OCMSMVC.Controllers
                 return BadRequest(new { success = false, message = "Dữ liệu yêu cầu không hợp lệ." });
             }
 
+            // Kiểm tra slot không thuộc ngày hoặc giờ trong quá khứ
+            var targetSlot = await timeSlotRepository.GetSlotByIdAsync(request.SlotId);
+            if (targetSlot == null)
+            {
+                return NotFound(new { success = false, message = "Khung giờ không tồn tại." });
+            }
+
+            if (targetSlot.DoctorSchedule.WorkDate.Date < DateTime.Today ||
+               (targetSlot.DoctorSchedule.WorkDate.Date == DateTime.Today && targetSlot.StartTime <= DateTime.Now.TimeOfDay))
+            {
+                return BadRequest(new { success = false, message = "Không thể giữ chỗ cho khung giờ đã trôi qua trong quá khứ." });
+            }
+
             int? currentPatientId = HttpContext.Session.GetInt32("UserId");
             int? previousHeldSlotId = HttpContext.Session.GetInt32("HeldSlotId");
             string? releasedRowVersion = null;
@@ -165,8 +198,14 @@ namespace OCMSMVC.Controllers
             if (previousHeldSlotId.HasValue && previousHeldSlotId.Value != request.SlotId)
             {
                 releasedRowVersion = await bookingService.ReleaseSlotAsync(previousHeldSlotId.Value);
+                // Broadcast SignalR: slot cũ được mở lại kèm RowVersion mới
+                await hubContext.Clients.All.SendAsync("SlotStatusChanged", new
+                {
+                    slotId = previousHeldSlotId.Value,
+                    status = "Open",
+                    rowVersion = releasedRowVersion
+                });
             }
-
 
             var result = await bookingService.HoldTimeSlotAsync(request.SlotId, request.RowVersion, currentPatientId);
 
@@ -175,22 +214,26 @@ namespace OCMSMVC.Controllers
                 HttpContext.Session.SetInt32("HeldSlotId", result.SlotId);
                 HttpContext.Session.SetString("HeldExpiresAt", DateTime.UtcNow.AddSeconds(result.ExpiresInSeconds).ToString("o"));
 
-                return Ok(
-                new
+                // Broadcast SignalR: slot vừa được giữ kèm RowVersion mới
+                await hubContext.Clients.All.SendAsync("SlotStatusChanged", new
+                {
+                    slotId = result.SlotId,
+                    status = "Hold",
+                    rowVersion = result.NewRowVersion
+                });
+
+                return Ok(new
                 {
                     success = true,
                     slotId = result.SlotId,
-                    newRowVersion = result.NewRowVersion,       //token mới của khung giờ vừa giữ
+                    newRowVersion = result.NewRowVersion,
                     releasedSlotId = previousHeldSlotId,
-                    releasedNewRowVersion = releasedRowVersion, //token mới của khung giờ vừa release
+                    releasedNewRowVersion = releasedRowVersion,
                     expiresIn = result.ExpiresInSeconds,
                     message = result.Message
-                }
-                );
-
+                });
             }
 
-            //conflict
             return StatusCode(409, new
             {
                 success = false,
@@ -203,21 +246,35 @@ namespace OCMSMVC.Controllers
         [HttpGet]
         public async Task<IActionResult> Confirm()
         {
+            int? userId = HttpContext.Session.GetInt32("UserId");
+            if (!userId.HasValue)
+            {
+                TempData["ErrorMessage"] = "Vui lòng đăng nhập để tiếp tục xác nhận thông tin lịch khám.";
+                return RedirectToAction("Login", "Auth", new { returnUrl = Url.Action("Confirm", "Booking") });
+            }
+
             int? heldSlotId = HttpContext.Session.GetInt32("HeldSlotId");
             if (!heldSlotId.HasValue)
             {
                 TempData["ErrorMessage"] = "Bạn chưa chọn khung giờ khám hoặc phiên giữ chỗ đã hết hạn.";
-                return RedirectToAction("Search");
+                return RedirectToAction(nameof(Search));
             }
 
             var slot = await timeSlotRepository.GetSlotByIdAsync(heldSlotId.Value);
             if (slot == null || slot.Status != "Hold")
             {
                 TempData["ErrorMessage"] = "Khung giờ không còn hợp lệ. Vui lòng chọn lại.";
-                return RedirectToAction("Search");
+                return RedirectToAction(nameof(Search));
             }
 
-            var model = new BookingConfirmViewModel
+            if (slot.DoctorSchedule.WorkDate.Date < DateTime.Today ||
+               (slot.DoctorSchedule.WorkDate.Date == DateTime.Today && slot.StartTime <= DateTime.Now.TimeOfDay))
+            {
+                TempData["ErrorMessage"] = "Khung giờ khám đã trôi qua trong quá khứ. Vui lòng chọn khung giờ khác.";
+                return RedirectToAction(nameof(Search));
+            }
+
+            return View(new BookingConfirmViewModel
             {
                 SlotId = slot.Id,
                 DoctorId = slot.DoctorSchedule.DoctorId,
@@ -231,10 +288,8 @@ namespace OCMSMVC.Controllers
                 ConsultationFee = slot.DoctorSchedule.Doctor.PricePerSlot,
                 PatientName = HttpContext.Session.GetString("FullName") ?? "Bệnh nhân",
                 PatientPhone = HttpContext.Session.GetString("PhoneNumber") ?? ""
-            };
-            return View(model);
+            });
         }
-
 
         [HttpPost]
         public async Task<IActionResult> ConfirmBooking(ConfirmBookingPostModel model)
@@ -243,14 +298,22 @@ namespace OCMSMVC.Controllers
             if (!userId.HasValue)
             {
                 TempData["ErrorMessage"] = "Bạn chưa đăng nhập. Vui lòng đăng nhập để xác nhận lịch hẹn.";
-                return RedirectToAction("Login", "Auth");
+                return RedirectToAction("Login", "Auth", new { returnUrl = Url.Action("Confirm", "Booking") });
             }
 
             int? heldSlotId = HttpContext.Session.GetInt32("HeldSlotId");
             if (!heldSlotId.HasValue || heldSlotId.Value != model.SlotId)
             {
                 TempData["ErrorMessage"] = "Phiên giữ chỗ của bạn đã hết hạn hoặc không hợp lệ. Vui lòng chọn lại.";
-                return RedirectToAction("Search");
+                return RedirectToAction(nameof(Search));
+            }
+
+            var slot = await timeSlotRepository.GetSlotByIdAsync(model.SlotId);
+            if (slot == null || slot.DoctorSchedule.WorkDate.Date < DateTime.Today ||
+               (slot.DoctorSchedule.WorkDate.Date == DateTime.Today && slot.StartTime <= DateTime.Now.TimeOfDay))
+            {
+                TempData["ErrorMessage"] = "Khung giờ khám đã trôi qua trong quá khứ. Vui lòng chọn khung giờ khác.";
+                return RedirectToAction(nameof(Search));
             }
 
             try
@@ -259,13 +322,16 @@ namespace OCMSMVC.Controllers
                 HttpContext.Session.Remove("HeldSlotId");
                 HttpContext.Session.Remove("HeldExpiresAt");
 
+                // Broadcast SignalR: slot đã được đặt
+                await hubContext.Clients.All.SendAsync("SlotStatusChanged", new { slotId = model.SlotId, status = "Booked" });
+
                 TempData["SuccessMessage"] = "Đặt lịch khám thành công!";
-                return RedirectToAction("Success", new { appointmentId = appointment.Id });
+                return RedirectToAction(nameof(Success), new { appointmentId = appointment.Id });
             }
             catch (Exception ex)
             {
                 TempData["ErrorMessage"] = "Lỗi khi xác nhận đặt lịch: " + ex.Message;
-                return RedirectToAction("Confirm");
+                return RedirectToAction(nameof(Confirm));
             }
         }
 
@@ -279,7 +345,7 @@ namespace OCMSMVC.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
-            var model = new BookingSuccessViewModel
+            return View(new BookingSuccessViewModel
             {
                 AppointmentId = appt.Id,
                 QrCodeToken = appt.QrCodeToken ?? $"APP-{appt.Id}",
@@ -295,9 +361,7 @@ namespace OCMSMVC.Controllers
                 PatientPhone = appt.Patient.User.PhoneNumber ?? "",
                 Reason = appt.Reason,
                 Status = appt.Status
-            };
-
-            return View(model);
+            });
         }
     }
 }
