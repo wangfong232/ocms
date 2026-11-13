@@ -45,7 +45,7 @@ namespace OCMSMVC.Controllers
             return (true, doctor.Id, fullName);
         }
 
-        // 1. Hàng đợi bệnh nhân hôm nay
+        // 1. Hàng đợi bệnh nhân hôm nay (Chỉ hiển thị bệnh nhân đã được Staff confirm và cấp số)
         [HttpGet]
         public async Task<IActionResult> Queue(string filter = "waiting")
         {
@@ -57,7 +57,16 @@ namespace OCMSMVC.Controllers
 
             var appointments = await _consultationService.GetTodayQueueAsync(doctorId);
 
-            int waitingCount = appointments.Count(a => a.Status == "Confirmed" || a.Status == "Arrived");
+            // Bệnh nhân đang được khám dở tại phòng
+            var activeApt = appointments.FirstOrDefault(a => a.Status == "InConsultation");
+
+            // Bệnh nhân chờ tiếp theo theo STT (QueueNumber nhỏ nhất)
+            var nextWaitingApt = appointments
+                .Where(a => a.Status == "Arrived")
+                .OrderBy(a => a.QueueNumber ?? 999)
+                .FirstOrDefault();
+
+            int waitingCount = appointments.Count(a => a.Status == "Arrived");
             int examiningCount = appointments.Count(a => a.Status == "InConsultation");
             int completedCount = appointments.Count(a => a.Status == "Completed");
 
@@ -67,7 +76,7 @@ namespace OCMSMVC.Controllers
                 "examining" => appointments.Where(a => a.Status == "InConsultation"),
                 "completed" => appointments.Where(a => a.Status == "Completed"),
                 "all" => appointments,
-                _ => appointments.Where(a => a.Status == "Confirmed" || a.Status == "Arrived")
+                _ => appointments.Where(a => a.Status == "Arrived")
             };
 
             var viewModelList = filteredAppointments.Select(a => new ConsultationQueueItemViewModel
@@ -85,7 +94,8 @@ namespace OCMSMVC.Controllers
                 Reason = a.Reason,
                 Status = a.Status,
                 HasVitalSigns = a.VitalSigns != null,
-                HasMedicalRecord = a.MedicalRecord != null
+                HasMedicalRecord = a.MedicalRecord != null,
+                IsNextInLine = (nextWaitingApt != null && a.Id == nextWaitingApt.Id)
             }).ToList();
 
             ViewBag.CurrentFilter = filter;
@@ -93,8 +103,83 @@ namespace OCMSMVC.Controllers
             ViewBag.ExaminingCount = examiningCount;
             ViewBag.CompletedCount = completedCount;
             ViewBag.TotalCount = appointments.Count;
+            ViewBag.HasActiveConsultation = (activeApt != null);
+            ViewBag.ActiveConsultationId = activeApt?.Id;
+            ViewBag.ActivePatientName = activeApt?.Patient?.User?.FullName;
+            ViewBag.ActiveQueueNumber = activeApt?.QueueNumber;
 
             return View(viewModelList);
+        }
+
+        // 1b. Xem trước hồ sơ bệnh án & tiền sử (Read-only Modal)
+        [HttpGet]
+        public async Task<IActionResult> GetPatientPreview(int id)
+        {
+            var (isDoctor, doctorId, _) = await GetCurrentDoctorAsync();
+            if (!isDoctor)
+            {
+                return Unauthorized();
+            }
+
+            var appt = await _consultationService.GetConsultationDetailAsync(id, doctorId);
+            if (appt == null)
+            {
+                return NotFound();
+            }
+
+            var pastRecords = await _consultationService.GetPatientPastMedicalHistoryAsync(appt.PatientId, id);
+            var todayQueue = await _consultationService.GetTodayQueueAsync(doctorId);
+            var activeConsultation = todayQueue.FirstOrDefault(a => a.Status == "InConsultation" && a.Id != id);
+
+            bool canCallNow = (activeConsultation == null) && (appt.Status == "Arrived");
+            string? blockReason = null;
+            if (activeConsultation != null && appt.Status != "InConsultation")
+            {
+                var curName = activeConsultation.Patient?.User?.FullName ?? "bệnh nhân khác";
+                var curNum = activeConsultation.QueueNumber.HasValue ? $"#{activeConsultation.QueueNumber}" : "";
+                blockReason = $"Bác sĩ đang khám cho {curName} ({curNum})";
+            }
+
+            var previewModel = new PatientPreviewViewModel
+            {
+                AppointmentId = appt.Id,
+                QueueNumber = appt.QueueNumber,
+                TimeSlotDisplay = (appt.TimeSlot != null) 
+                    ? $"{appt.TimeSlot.StartTime:hh\\:mm} - {appt.TimeSlot.EndTime:hh\\:mm}" 
+                    : "",
+                Status = appt.Status,
+                Reason = appt.Reason,
+                PatientId = appt.PatientId,
+                PatientName = appt.Patient?.User?.FullName ?? "N/A",
+                Gender = appt.Patient?.Gender == "Male" ? "Nam" : (appt.Patient?.Gender == "Female" ? "Nữ" : "Khác"),
+                DateOfBirth = appt.Patient?.DateOfBirth ?? DateTime.MinValue,
+                Address = appt.Patient?.Address,
+                HealthInsuranceNumber = appt.Patient?.HealthInsuranceNumber,
+                PhoneNumber = appt.Patient?.User?.PhoneNumber ?? "N/A",
+
+                HasVitalSigns = appt.VitalSigns != null,
+                SystolicBP = appt.VitalSigns?.SystolicBP ?? 0,
+                DiastolicBP = appt.VitalSigns?.DiastolicBP ?? 0,
+                Pulse = appt.VitalSigns?.Pulse ?? 0,
+                Temperature = appt.VitalSigns?.Temperature ?? 0,
+                SpO2 = appt.VitalSigns?.SpO2 ?? 0,
+                Weight = appt.VitalSigns?.Weight ?? 0,
+                Height = appt.VitalSigns?.Height ?? 0,
+
+                PastHistory = pastRecords.Select(pr => new PastMedicalHistoryItemViewModel
+                {
+                    Date = pr.Appointment?.AppointmentDate ?? pr.CreatedAt,
+                    DoctorName = pr.Appointment?.Doctor?.User?.FullName ?? "Bác sĩ",
+                    Diagnosis = pr.Diagnosis,
+                    ICD10Code = pr.ICD10Code,
+                    DoctorNotes = pr.DoctorNotes
+                }).ToList(),
+
+                CanCallNow = canCallNow,
+                BlockReason = blockReason
+            };
+
+            return PartialView("_PatientPreviewModal", previewModel);
         }
 
         // 2. Màn hình Bàn khám bệnh (Consultation Workspace)
@@ -107,8 +192,13 @@ namespace OCMSMVC.Controllers
                 return RedirectToAction("Login", "Auth");
             }
 
-            // Tự động chuyển trạng thái sang "InConsultation" nếu mới bắt đầu vào khám
-            await _consultationService.StartConsultationAsync(id, doctorId);
+            // Tự động chuyển trạng thái sang "InConsultation" nếu mới bắt đầu vào khám (có kiểm tra ca khám trùng lặp)
+            var startResult = await _consultationService.StartConsultationAsync(id, doctorId);
+            if (!startResult.Success)
+            {
+                TempData["ErrorMessage"] = startResult.Message;
+                return RedirectToAction(nameof(Queue));
+            }
 
             var appt = await _consultationService.GetConsultationDetailAsync(id, doctorId);
             if (appt == null)

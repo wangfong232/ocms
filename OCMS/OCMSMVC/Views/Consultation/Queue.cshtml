@@ -6,6 +6,7 @@
     int examiningCount = ViewBag.ExaminingCount is int ec ? ec : 0;
     int completedCount = ViewBag.CompletedCount is int cc ? cc : 0;
     int totalCount = ViewBag.TotalCount is int tc ? tc : 0;
+    bool hasActiveConsultation = ViewBag.HasActiveConsultation is bool hac && hac;
 }
 
 <div class="container py-3">
@@ -13,10 +14,10 @@
     <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
         <div>
             <h3 class="fw-bold text-primary mb-1">
-                <i class="bi bi-clipboard2-pulse me-2"></i>Bàn khám bệnh
+                <i class="bi bi-clipboard2-pulse me-2"></i>Bàn khám bệnh — Hàng đợi Tiếp nhận
             </h3>
             <p class="text-muted small mb-0">
-                Ngày: <strong>@DateTime.Today.ToString("dd/MM/yyyy")</strong>
+                Ngày: <strong>@DateTime.Today.ToString("dd/MM/yyyy")</strong> — Chỉ hiển thị bệnh nhân đã được Lễ tân Check-in &amp; Cấp số thứ tự khám
             </p>
         </div>
         <div>
@@ -42,11 +43,30 @@
         </div>
     }
 
+    <!-- Cảnh báo khi có ca khám dở trong phòng -->
+    @if (hasActiveConsultation)
+    {
+        <div class="alert alert-warning border-warning d-flex flex-wrap align-items-center justify-content-between shadow-sm mb-3" role="alert">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-person-pulse fs-2 me-3 text-warning"></i>
+                <div>
+                    <strong class="d-block text-dark">Đang có bệnh nhân trong phòng khám!</strong>
+                    <span class="text-secondary small">
+                        Bệnh nhân: <strong>@ViewBag.ActivePatientName</strong> (Số STT: <span class="badge bg-dark">#@ViewBag.ActiveQueueNumber</span>). Mỗi bác sĩ chỉ khám 1 bệnh nhân tại một thời điểm, vui lòng hoàn tất ca này trước khi tiếp nhận bệnh nhân mới.
+                    </span>
+                </div>
+            </div>
+            <a asp-action="Examine" asp-route-id="@ViewBag.ActiveConsultationId" class="btn btn-warning text-dark fw-bold btn-sm px-3 shadow-sm mt-2 mt-md-0">
+                <i class="bi bi-play-circle me-1"></i>Tiếp tục ca khám này
+            </a>
+        </div>
+    }
+
     <!-- Tabs Lọc Trạng Thái -->
     <div class="d-flex flex-wrap gap-2 mb-3">
         <a asp-action="Queue" asp-route-filter="waiting" 
            class="btn btn-sm @(currentFilter == "waiting" ? "btn-primary shadow-sm" : "btn-outline-primary")">
-            <i class="bi bi-hourglass-split me-1"></i>Chờ khám
+            <i class="bi bi-hourglass-split me-1"></i>Chờ khám (Đã cấp số)
             <span class="badge @(currentFilter == "waiting" ? "bg-white text-primary" : "bg-primary text-white") ms-1">@waitingCount</span>
         </a>
         <a asp-action="Queue" asp-route-filter="examining" 
@@ -74,6 +94,7 @@
                 <div class="text-center py-5 text-muted">
                     <i class="bi bi-inbox fs-1 text-secondary opacity-50 d-block mb-3"></i>
                     <p class="mb-0 fs-6">Hiện tại không có bệnh nhân nào trong mục này.</p>
+                    <small class="text-muted d-block mt-1">Bệnh nhân cần được Nhân viên Tiếp đón Check-in và Cấp số thứ tự trước khi hiển thị ở đây.</small>
                 </div>
             }
             else
@@ -82,7 +103,7 @@
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th class="ps-3" style="width: 70px;">STT</th>
+                                <th class="ps-3" style="width: 100px;">Số khám</th>
                                 <th>Khung giờ</th>
                                 <th>Thông tin Bệnh nhân</th>
                                 <th>Lý do khám bệnh</th>
@@ -94,13 +115,19 @@
                         <tbody>
                             @foreach (var item in Model)
                             {
-                                <tr>
-                                    <td class="ps-3 fw-bold text-primary">
+                                <tr class="@(item.IsNextInLine && item.Status == "Arrived" ? "table-warning bg-opacity-25" : "")">
+                                    <td class="ps-3">
                                         @if (item.QueueNumber.HasValue)
                                         {
-                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-6">
+                                            <span class="badge bg-primary fs-6 px-2 py-1">
                                                 #@item.QueueNumber
                                             </span>
+                                            @if (item.IsNextInLine && item.Status == "Arrived")
+                                            {
+                                                <small class="d-block text-danger fw-bold mt-1" style="font-size:0.7rem;">
+                                                    <i class="bi bi-arrow-right-circle me-1"></i>Kế tiếp
+                                                </small>
+                                            }
                                         }
                                         else
                                         {
@@ -166,6 +193,13 @@
                                         }
                                     </td>
                                     <td class="text-end pe-3">
+                                        <!-- Nút Xem trước Hồ sơ bệnh án & Tiền sử -->
+                                        <button type="button" class="btn btn-sm btn-outline-info me-1" 
+                                                onclick="openPatientPreview(@item.AppointmentId)" 
+                                                title="Xem trước hồ sơ, tiền sử & sinh hiệu">
+                                            <i class="bi bi-journal-medical me-1"></i>Xem hồ sơ
+                                        </button>
+
                                         @if (item.Status == "InConsultation")
                                         {
                                             <a asp-action="Examine" asp-route-id="@item.AppointmentId" class="btn btn-sm btn-warning text-dark fw-semibold shadow-sm">
@@ -175,14 +209,24 @@
                                         else if (item.Status == "Completed")
                                         {
                                             <a asp-action="Examine" asp-route-id="@item.AppointmentId" class="btn btn-sm btn-outline-secondary">
-                                                <i class="bi bi-eye me-1"></i>Xem bệnh án
+                                                <i class="bi bi-eye me-1"></i>Bệnh án
                                             </a>
                                         }
                                         else
                                         {
-                                            <a asp-action="Examine" asp-route-id="@item.AppointmentId" class="btn btn-sm btn-primary shadow-sm">
-                                                <i class="bi bi-box-arrow-in-right me-1"></i>Vào khám
-                                            </a>
+                                            @if (hasActiveConsultation)
+                                            {
+                                                <button type="button" class="btn btn-sm btn-secondary" disabled 
+                                                        title="Đang có ca khám dở trong phòng. Hãy hoàn tất ca hiện tại trước!">
+                                                    <i class="bi bi-lock me-1"></i>Vào khám
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <a asp-action="Examine" asp-route-id="@item.AppointmentId" class="btn btn-sm btn-primary shadow-sm">
+                                                    <i class="bi bi-box-arrow-in-right me-1"></i>Vào khám
+                                                </a>
+                                            }
                                         }
                                     </td>
                                 </tr>
@@ -195,3 +239,26 @@
     </div>
 </div>
 
+<!-- Container cho Modal xem nhanh hồ sơ bệnh án -->
+<div id="patientPreviewContainer"></div>
+
+@section Scripts {
+    <script>
+        function openPatientPreview(appointmentId) {
+            fetch('/Consultation/GetPatientPreview?id=' + appointmentId)
+                .then(function(res) {
+                    if (!res.ok) throw new Error("Không thể tải thông tin hồ sơ bệnh nhân.");
+                    return res.text();
+                })
+                .then(function(html) {
+                    document.getElementById('patientPreviewContainer').innerHTML = html;
+                    var modalEl = document.getElementById('patientPreviewModal');
+                    var modal = new bootstrap.Modal(modalEl);
+                    modal.show();
+                })
+                .catch(function(err) {
+                    alert(err.message);
+                });
+        }
+    </script>
+}
