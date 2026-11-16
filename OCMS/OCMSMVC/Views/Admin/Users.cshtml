@@ -1,24 +1,433 @@
 @model OCMSMVC.Models.AdminAccountCreateViewModel
 @using BusinessObjects.Entities
 @using Microsoft.AspNetCore.Mvc.Rendering
-@{ ViewData["Title"] = "Quản lý tài khoản"; var users = (IReadOnlyList<User>)ViewBag.Users; }
-<div class="d-flex justify-content-between align-items-center mb-3"><div><a asp-action="Index" class="text-decoration-none">← Quản trị</a><h1 class="h3 mt-2">Tài khoản nhân viên</h1></div></div>
-@if (TempData["ErrorMessage"] is string error) { <div class="alert alert-danger">@error</div> }
-@if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success">@success</div> }
-<div class="card shadow-sm border-0 mb-4"><div class="card-header bg-white fw-semibold">Tạo tài khoản</div><div class="card-body">
-<form asp-action="CreateUser" method="post"><div asp-validation-summary="ModelOnly" class="text-danger"></div>
-<div class="row g-3">
-<div class="col-md-6"><label asp-for="FullName" class="form-label">Họ tên</label><input asp-for="FullName" class="form-control" /><span asp-validation-for="FullName" class="text-danger"></span></div>
-<div class="col-md-6"><label asp-for="Email" class="form-label">Email</label><input asp-for="Email" class="form-control" /><span asp-validation-for="Email" class="text-danger"></span></div>
-<div class="col-md-4"><label asp-for="PhoneNumber" class="form-label">Số điện thoại</label><input asp-for="PhoneNumber" class="form-control" /><span asp-validation-for="PhoneNumber" class="text-danger"></span></div>
-<div class="col-md-4"><label asp-for="Password" class="form-label">Mật khẩu tạm (ít nhất 8 ký tự)</label><input asp-for="Password" type="password" class="form-control" /><span asp-validation-for="Password" class="text-danger"></span></div>
-<div class="col-md-4"><label asp-for="Role" class="form-label">Vai trò</label><select asp-for="Role" class="form-select"><option value="Staff">Staff</option><option value="Doctor">Doctor</option><option value="Admin">Admin</option></select></div>
-<div class="col-md-4"><label asp-for="DepartmentId" class="form-label">Khoa (bắt buộc với bác sĩ)</label><select asp-for="DepartmentId" class="form-select"><option value="">-- Chọn khoa --</option>@foreach (SelectListItem item in (IEnumerable<SelectListItem>)ViewBag.DepartmentOptions) { <option value="@item.Value">@item.Text</option> }</select></div>
-<div class="col-md-4"><label asp-for="DefaultRoomId" class="form-label">Phòng mặc định (tùy chọn)</label><select asp-for="DefaultRoomId" class="form-select"><option value="">-- Không chọn --</option>@foreach (SelectListItem item in (IEnumerable<SelectListItem>)ViewBag.RoomOptions) { <option value="@item.Value">@item.Text</option> }</select></div>
-<div class="col-md-2"><label asp-for="AcademicTitle" class="form-label">Học hàm</label><input asp-for="AcademicTitle" class="form-control" placeholder="BS" /></div>
-<div class="col-md-2"><label asp-for="PricePerSlot" class="form-label">Phí/lượt</label><input asp-for="PricePerSlot" class="form-control" type="number" min="0" /></div>
-</div><button class="btn btn-primary mt-3"><i class="bi bi-person-plus me-1"></i>Tạo tài khoản</button></form></div></div>
-<div class="card shadow-sm border-0"><div class="table-responsive"><table class="table align-middle mb-0"><thead class="table-light"><tr><th>Họ tên</th><th>Email / điện thoại</th><th>Vai trò</th><th>Khoa</th><th>Trạng thái</th><th></th></tr></thead><tbody>
-@foreach (var user in users) { <tr><td>@user.FullName</td><td>@user.Email<br /><small class="text-muted">@user.PhoneNumber</small></td><td>@user.Role</td><td>@(user.Doctor?.Department.Name ?? "—")</td><td><span class="badge @(user.IsActive ? "bg-success" : "bg-secondary")">@(user.IsActive ? "Hoạt động" : "Đã khóa")</span></td><td class="text-end"><form asp-action="ToggleUser" method="post" onsubmit="return confirm('Xác nhận thay đổi trạng thái tài khoản này?')"><input type="hidden" name="id" value="@user.Id" /><button class="btn btn-sm @(user.IsActive ? "btn-outline-danger" : "btn-outline-success")">@(user.IsActive ? "Khóa" : "Mở khóa")</button></form></td></tr> }
-@if (users.Count == 0) { <tr><td colspan="6" class="text-center text-muted py-4">Chưa có tài khoản.</td></tr> }
-</tbody></table></div></div>
+@{
+    ViewData["Title"] = "Quản lý tài khoản";
+    var users = (IReadOnlyList<User>)ViewBag.Users;
+    string currentRole = ViewBag.CurrentRole as string ?? "All";
+    string currentSearch = ViewBag.CurrentSearch as string ?? "";
+    var deptOptions = (IEnumerable<SelectListItem>)ViewBag.DepartmentOptions;
+    var roomOptions = (IEnumerable<SelectListItem>)ViewBag.RoomOptions;
+}
+
+<div class="container py-4">
+    <!-- Header Banner -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 small">
+                    <li class="breadcrumb-item"><a asp-action="Index" class="text-decoration-none">Quản trị</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Quản lý tài khoản</li>
+                </ol>
+            </nav>
+            <h2 class="fw-bold text-dark mb-1">
+                <i class="bi bi-people-fill text-primary me-2"></i>Quản Lý Tài Khoản Người Dùng
+            </h2>
+            <p class="text-muted mb-0 small">Phân quyền, cấp tài khoản cho bác sĩ, nhân viên phòng khám và theo dõi tài khoản người dùng.</p>
+        </div>
+        <div class="mt-3 mt-md-0 d-flex gap-2">
+            <a asp-action="Index" class="btn btn-outline-secondary px-3 py-2 rounded-3 shadow-sm">
+                <i class="bi bi-arrow-left me-1"></i> Về tổng quan
+            </a>
+            <a href="#createSection" class="btn btn-primary px-3 py-2 rounded-3 shadow-sm fw-semibold">
+                <i class="bi bi-person-plus-fill me-1"></i> Thêm tài khoản mới
+            </a>
+        </div>
+    </div>
+
+    <!-- Thông báo Alert -->
+    @if (TempData["ErrorMessage"] is string error)
+    {
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm border-0 mb-4 rounded-3 d-flex align-items-center" role="alert">
+            <i class="bi bi-exclamation-octagon-fill me-2 fs-5"></i>
+            <div>@error</div>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["SuccessMessage"] is string success)
+    {
+        <div class="alert alert-success alert-dismissible fade show shadow-sm border-0 mb-4 rounded-3 d-flex align-items-center" role="alert">
+            <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+            <div>@success</div>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Thanh Tìm kiếm và Bộ lọc -->
+    <div class="card border rounded-4 shadow-sm bg-white mb-4">
+        <div class="card-body p-3">
+            <form method="get" asp-action="Users" class="row g-2 align-items-center">
+                <div class="col-md-5">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 rounded-start-3"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" name="search" class="form-control bg-light border-start-0 rounded-end-3 py-2" 
+                               placeholder="Tìm theo Email, Họ tên hoặc Số điện thoại..." value="@currentSearch" />
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select name="role" class="form-select rounded-3 py-2">
+                        <option value="All" selected="@(currentRole == "All")">-- Tất cả vai trò --</option>
+                        <option value="Doctor" selected="@(currentRole == "Doctor")">👨‍⚕️ Bác sĩ (Doctor)</option>
+                        <option value="Staff" selected="@(currentRole == "Staff")">👩‍💼 Nhân viên / Lễ tân (Staff)</option>
+                        <option value="Admin" selected="@(currentRole == "Admin")">🛡️ Quản trị viên (Admin)</option>
+                        <option value="Patient" selected="@(currentRole == "Patient")">👤 Bệnh nhân (Patient)</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary rounded-3 w-100 py-2 fw-semibold">
+                        <i class="bi bi-funnel me-1"></i> Lọc
+                    </button>
+                    @if (!string.IsNullOrEmpty(currentSearch) || currentRole != "All")
+                    {
+                        <a asp-action="Users" class="btn btn-outline-secondary rounded-3 py-2" title="Xóa lọc">
+                            <i class="bi bi-x-lg"></i>
+                        </a>
+                    }
+                </div>
+                <div class="col-md-2 text-md-end text-muted small">
+                    Hiển thị: <strong class="text-primary font-monospace fs-6">@users.Count</strong> tài khoản
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bảng danh sách tài khoản -->
+    <div class="card border rounded-4 shadow-sm bg-white mb-5 overflow-hidden">
+        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+            <div class="fw-bold text-dark fs-6">
+                <i class="bi bi-list-check text-primary me-2"></i>Danh Sách Tài Khoản Hệ Thống
+            </div>
+            <span class="badge bg-light text-secondary border rounded-pill px-3 py-1 small">
+                Cập nhật tức thì
+            </span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light text-uppercase small text-muted">
+                    <tr>
+                        <th class="ps-4 py-3">Họ và tên</th>
+                        <th class="py-3">Email / Số điện thoại</th>
+                        <th class="py-3">Vai trò</th>
+                        <th class="py-3">Khoa / Phòng trực</th>
+                        <th class="py-3">Phí khám</th>
+                        <th class="py-3 text-center">Trạng thái</th>
+                        <th class="py-3 text-end pe-4">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in users)
+                    {
+                        <tr>
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-initial rounded-circle bg-primary-subtle text-primary fw-bold me-3 d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; font-size: 0.9rem;">
+                                        @(string.IsNullOrEmpty(user.FullName) ? "U" : user.FullName.Substring(0, 1).ToUpper())
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold text-dark">@user.FullName</div>
+                                        @if (user.Doctor != null && !string.IsNullOrEmpty(user.Doctor.AcademicTitle))
+                                        {
+                                            <span class="badge bg-light text-primary border rounded-pill small" style="font-size: 0.75rem;">
+                                                @user.Doctor.AcademicTitle
+                                            </span>
+                                        }
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="text-dark fw-semibold">@user.Email</div>
+                                <small class="text-muted"><i class="bi bi-telephone me-1"></i>@user.PhoneNumber</small>
+                            </td>
+                            <td>
+                                @{
+                                    string roleBadge = user.Role switch
+                                    {
+                                        "Doctor" => "bg-primary-subtle text-primary border border-primary-subtle",
+                                        "Admin" => "bg-danger-subtle text-danger border border-danger-subtle",
+                                        "Staff" => "bg-info-subtle text-info-emphasis border border-info-subtle",
+                                        _ => "bg-secondary-subtle text-secondary border border-secondary-subtle"
+                                    };
+                                }
+                                <span class="badge @roleBadge rounded-pill px-3 py-1 fw-semibold">
+                                    @user.Role
+                                </span>
+                            </td>
+                            <td>
+                                @if (user.Doctor != null)
+                                {
+                                    <div class="fw-semibold text-dark">@(user.Doctor.Department?.Name ?? "—")</div>
+                                    <small class="text-muted">
+                                        <i class="bi bi-door-open me-1"></i>Phòng: @(user.Doctor.DefaultRoom?.RoomNumber ?? "Chưa gán")
+                                    </small>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                            <td>
+                                @if (user.Doctor != null)
+                                {
+                                    <span class="fw-bold text-success font-monospace">@user.Doctor.PricePerSlot.ToString("N0") đ</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                            <td class="text-center">
+                                <span class="badge rounded-pill px-3 py-1 @(user.IsActive ? "bg-success-subtle text-success border border-success-subtle" : "bg-secondary-subtle text-secondary border border-secondary-subtle")">
+                                    <i class="bi @(user.IsActive ? "bi-check-circle-fill" : "bi-lock-fill") me-1"></i>
+                                    @(user.IsActive ? "Hoạt động" : "Đã khóa")
+                                </span>
+                            </td>
+                            <td class="text-end pe-4">
+                                <div class="d-flex justify-content-end gap-1">
+                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-3 px-2 py-1 shadow-sm"
+                                            onclick="openEditUserModal(@user.Id, '@Html.Raw(user.FullName.Replace("'", "\\'"))', '@user.PhoneNumber', '@user.Role', @(user.Doctor?.DepartmentId ?? 0), @(user.Doctor?.DefaultRoomId ?? 0), '@(user.Doctor?.AcademicTitle ?? "")', @(user.Doctor?.PricePerSlot ?? 0))"
+                                            title="Chỉnh sửa tài khoản & Phí khám">
+                                        <i class="bi bi-pencil-square me-1"></i>Sửa
+                                    </button>
+                                    <form asp-action="ToggleUser" method="post" class="d-inline" onsubmit="return confirm('Xác nhận thay đổi trạng thái tài khoản này?')">
+                                        <input type="hidden" name="id" value="@user.Id" />
+                                        <button type="submit" class="btn btn-sm @(user.IsActive ? "btn-outline-danger" : "btn-outline-success") rounded-3 px-2 py-1 shadow-sm" title="@(user.IsActive ? "Khóa tài khoản" : "Mở khóa")">
+                                            <i class="bi @(user.IsActive ? "bi-lock" : "bi-unlock") me-1"></i>@(user.IsActive ? "Khóa" : "Mở")
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    @if (users.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-5">
+                                <i class="bi bi-inbox fs-1 text-secondary opacity-50 d-block mb-2"></i>
+                                Không tìm thấy tài khoản nào phù hợp với bộ lọc hiện tại.
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Form Tạo tài khoản mới -->
+    <div class="card border rounded-4 shadow-sm bg-white" id="createSection">
+        <div class="card-header bg-white py-3 border-bottom d-flex align-items-center">
+            <div class="p-2 rounded-3 bg-primary-subtle text-primary me-2">
+                <i class="bi bi-person-plus-fill fs-5"></i>
+            </div>
+            <div>
+                <h5 class="fw-bold text-dark mb-0">Tạo Tài Khoản Mới</h5>
+                <small class="text-muted">Đăng ký tài khoản cho bác sĩ, nhân viên lễ tân, dược sĩ hoặc quản trị viên.</small>
+            </div>
+        </div>
+        <div class="card-body p-4">
+            <form asp-action="CreateUser" method="post" id="createUserForm">
+                <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+                
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label asp-for="FullName" class="form-label small fw-bold text-secondary">Họ và tên <span class="text-danger">*</span></label>
+                        <input asp-for="FullName" class="form-control rounded-3 py-2" placeholder="VD: Bùi Quốc Khánh..." required />
+                        <span asp-validation-for="FullName" class="text-danger small"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Email" class="form-label small fw-bold text-secondary">Địa chỉ Email <span class="text-danger">*</span></label>
+                        <input asp-for="Email" class="form-control rounded-3 py-2" placeholder="name@ocms.clinic" required />
+                        <span asp-validation-for="Email" class="text-danger small"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="PhoneNumber" class="form-label small fw-bold text-secondary">Số điện thoại <span class="text-danger">*</span></label>
+                        <input asp-for="PhoneNumber" class="form-control rounded-3 py-2" placeholder="0901234567" required />
+                        <span asp-validation-for="PhoneNumber" class="text-danger small"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Password" class="form-label small fw-bold text-secondary">Mật khẩu tạm (tối thiểu 8 ký tự) <span class="text-danger">*</span></label>
+                        <input asp-for="Password" type="password" class="form-control rounded-3 py-2" placeholder="••••••••" required minlength="8" />
+                        <span asp-validation-for="Password" class="text-danger small"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Role" class="form-label small fw-bold text-secondary">Vai trò phân quyền <span class="text-danger">*</span></label>
+                        <select asp-for="Role" class="form-select rounded-3 py-2" id="roleSelect" required>
+                            <option value="Staff">👩‍💼 Nhân viên / Lễ tân (Staff)</option>
+                            <option value="Doctor">👨‍⚕️ Bác sĩ điều trị (Doctor)</option>
+                            <option value="Admin">🛡️ Quản trị viên (Admin)</option>
+                            <option value="Patient">👤 Bệnh nhân (Patient)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Các trường chuyên môn của Bác sĩ (chỉ hiển thị khi chọn Doctor) -->
+                <div id="doctorFields" class="row g-3 mt-2 p-3 border rounded-3 bg-light" style="display: none;">
+                    <div class="col-12 pb-1 border-bottom d-flex align-items-center">
+                        <i class="bi bi-hospital text-primary me-2"></i>
+                        <span class="small fw-bold text-primary text-uppercase">Thiết Lập Chuyên Môn Bác Sĩ</span>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="DepartmentId" class="form-label small fw-semibold">Chuyên khoa <span class="text-danger">*</span></label>
+                        <select asp-for="DepartmentId" class="form-select rounded-3" id="departmentSelect">
+                            <option value="">-- Chọn chuyên khoa --</option>
+                            @foreach (SelectListItem item in deptOptions)
+                            {
+                                <option value="@item.Value">@item.Text</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="DefaultRoomId" class="form-label small fw-semibold">Phòng khám mặc định</label>
+                        <select asp-for="DefaultRoomId" class="form-select rounded-3">
+                            <option value="">-- Không chọn --</option>
+                            @foreach (SelectListItem item in roomOptions)
+                            {
+                                <option value="@item.Value">@item.Text</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label asp-for="AcademicTitle" class="form-label small fw-semibold">Học hàm / Học vị</label>
+                        <input asp-for="AcademicTitle" class="form-control rounded-3" placeholder="BS, ThS.BS, BS.CKI..." />
+                    </div>
+                    <div class="col-md-2">
+                        <label asp-for="PricePerSlot" class="form-label small fw-semibold text-danger">Phí khám/lượt (VNĐ)</label>
+                        <input asp-for="PricePerSlot" class="form-control rounded-3 fw-bold text-success" type="number" min="0" step="5000" placeholder="150000" />
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-2 d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary px-4 py-2 rounded-3 shadow-sm fw-semibold">
+                        <i class="bi bi-person-plus-fill me-1"></i> Lưu và Tạo Tài Khoản
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Chỉnh sửa tài khoản & Cập nhật phí khám -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header bg-light py-3 border-bottom">
+                <div class="d-flex align-items-center">
+                    <div class="p-2 rounded-3 bg-primary-subtle text-primary me-2">
+                        <i class="bi bi-pencil-square fs-5"></i>
+                    </div>
+                    <div>
+                        <h6 class="modal-title fw-bold text-dark mb-0">Chỉnh Sửa Tài Khoản</h6>
+                        <small class="text-muted" id="editUserEmailDisplay"></small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-action="UpdateUser" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-body p-4">
+                    <input type="hidden" name="Id" id="editUserId" />
+                    <input type="hidden" name="Role" id="editUserRole" />
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Họ và tên <span class="text-danger">*</span></label>
+                        <input type="text" name="FullName" id="editFullName" class="form-control rounded-3 py-2" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Số điện thoại <span class="text-danger">*</span></label>
+                        <input type="text" name="PhoneNumber" id="editPhoneNumber" class="form-control rounded-3 py-2" required />
+                    </div>
+
+                    <!-- Phần riêng cho Bác sĩ -->
+                    <div id="editDoctorFields" class="p-3 border rounded-3 bg-light mb-2" style="display: none;">
+                        <div class="fw-bold small text-primary mb-2 d-flex align-items-center">
+                            <i class="bi bi-hospital me-1"></i> Thông Tin Bác Sĩ &amp; Phí Khám
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small fw-semibold">Học hàm / Học vị</label>
+                            <input type="text" name="AcademicTitle" id="editAcademicTitle" class="form-control rounded-3 form-control-sm" placeholder="BS, ThS.BS, BS.CKI..." />
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small fw-semibold">Khoa khám</label>
+                            <select name="DepartmentId" id="editDepartmentId" class="form-select rounded-3 form-select-sm">
+                                <option value="">-- Chọn khoa --</option>
+                                @foreach (SelectListItem item in deptOptions)
+                                {
+                                    <option value="@item.Value">@item.Text</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small fw-semibold">Phòng mặc định</label>
+                            <select name="DefaultRoomId" id="editDefaultRoomId" class="form-select rounded-3 form-select-sm">
+                                <option value="">-- Không chọn --</option>
+                                @foreach (SelectListItem item in roomOptions)
+                                {
+                                    <option value="@item.Value">@item.Text</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="mb-1">
+                            <label class="form-label small fw-semibold text-danger">Phí khám/lượt (VNĐ) <span class="text-danger">*</span></label>
+                            <input type="number" name="PricePerSlot" id="editPricePerSlot" class="form-control rounded-3 form-control-sm fw-bold text-success font-monospace" min="0" step="5000" />
+                            <small class="text-muted d-block mt-1" style="font-size:0.75rem;">Phí khám áp dụng khi bệnh nhân đặt lịch và thanh toán.</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer py-2 bg-light border-top">
+                    <button type="button" class="btn btn-secondary rounded-3 px-3 py-1 btn-sm" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-primary rounded-3 px-4 py-1 btn-sm fw-semibold shadow-sm">
+                        <i class="bi bi-save me-1"></i> Lưu thay đổi
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Ẩn/Hiện trường Bác sĩ ở Form Tạo mới
+        var roleSelect = document.getElementById('roleSelect');
+        var doctorFields = document.getElementById('doctorFields');
+        var departmentSelect = document.getElementById('departmentSelect');
+
+        function toggleDoctorFields() {
+            if (!roleSelect || !doctorFields) return;
+            if (roleSelect.value === 'Doctor') {
+                doctorFields.style.display = 'flex';
+                if (departmentSelect) departmentSelect.required = true;
+            } else {
+                doctorFields.style.display = 'none';
+                if (departmentSelect) departmentSelect.required = false;
+            }
+        }
+
+        if (roleSelect) {
+            roleSelect.addEventListener('change', toggleDoctorFields);
+            toggleDoctorFields();
+        }
+
+        // Mở Modal Sửa tài khoản
+        function openEditUserModal(id, fullName, phone, role, deptId, roomId, academicTitle, price) {
+            document.getElementById('editUserId').value = id;
+            document.getElementById('editUserRole').value = role;
+            document.getElementById('editFullName').value = fullName;
+            document.getElementById('editPhoneNumber').value = phone;
+
+            var editDoctorSection = document.getElementById('editDoctorFields');
+            if (role === 'Doctor') {
+                editDoctorSection.style.display = 'block';
+                document.getElementById('editAcademicTitle').value = academicTitle || '';
+                document.getElementById('editDepartmentId').value = deptId || '';
+                document.getElementById('editDefaultRoomId').value = roomId || '';
+                document.getElementById('editPricePerSlot').value = price || 0;
+            } else {
+                editDoctorSection.style.display = 'none';
+            }
+
+            var modalEl = document.getElementById('editUserModal');
+            var modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        }
+    </script>
+}

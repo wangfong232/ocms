@@ -119,7 +119,16 @@ namespace Repositories
                 existing.DoctorNotes = medicalRecord.DoctorNotes;
                 existing.FollowUpDate = medicalRecord.FollowUpDate;
             }
-            return await _context.SaveChangesAsync() > 0;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public async Task<List<Medicine>> SearchMedicinesAsync(string? keyword)

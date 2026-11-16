@@ -54,17 +54,7 @@ namespace Services
                 return (true, "Vào ca khám.");
             }
 
-            // Kiểm tra xem bác sĩ có đang khám dở bệnh nhân nào khác không (1 phòng khám chỉ khám 1 người tại một thời điểm)
-            var todayApts = await _consultationRepo.GetTodayAppointmentsByDoctorIdAsync(doctorId, DateTime.Today);
-            var activeConsultation = todayApts.FirstOrDefault(a => a.Status == "InConsultation" && a.Id != appointmentId);
-            if (activeConsultation != null)
-            {
-                var patientName = activeConsultation.Patient?.User?.FullName ?? "bệnh nhân khác";
-                var queueNum = activeConsultation.QueueNumber.HasValue ? $"#{activeConsultation.QueueNumber}" : "";
-                return (false, $"Bác sĩ đang khám cho {patientName} ({queueNum}). Vui lòng hoàn thành ca khám hiện tại trước khi gọi bệnh nhân tiếp theo!");
-            }
-
-            // Cập nhật trạng thái lịch hẹn sang InConsultation
+            // Bác sĩ có quyền tiếp nhận ca khám mới (kể cả khi có ca trước đó đang lưu tạm / chờ kết quả xét nghiệm)
             await _consultationRepo.UpdateAppointmentStatusAsync(appointmentId, "InConsultation");
             return (true, "Đã bắt đầu ca khám.");
         }
@@ -108,14 +98,11 @@ namespace Services
             {
                 await _consultationRepo.UpdateAppointmentStatusAsync(appointmentId, "Completed");
                 
-                // Cập nhật trạng thái các đơn thuốc sang "Paid" để chuyển ngay sang hàng chờ Cấp phát thuốc của Lễ tân/Dược
-                var currentRecord = await _consultationRepo.GetMedicalRecordByAppointmentIdAsync(appointmentId);
-                if (currentRecord != null)
-                {
-                    await _consultationRepo.UpdatePrescriptionsStatusByMedicalRecordIdAsync(currentRecord.Id, "Paid");
-                }
+                // Đơn thuốc giữ trạng thái "Pending" để Thu ngân tính tiền và thu đủ tiền thuốc.
+                // Sau khi Thu ngân quyết toán (SettleAppointmentAsync), trạng thái mới chuyển sang "Paid"
+                // để quầy Dược / Cấp phát thuốc thực hiện phát thuốc và trừ kho tồn.
 
-                return (true, "Đã hoàn thành ca khám và chuyển đơn thuốc sang bộ phận cấp phát thuốc.");
+                return (true, "Đã hoàn thành ca khám và chuyển hồ sơ sang quầy Thu ngân quyết toán.");
             }
 
             return (true, "Đã lưu tạm bệnh án!");

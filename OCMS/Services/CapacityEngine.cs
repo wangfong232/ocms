@@ -16,7 +16,7 @@ namespace Services
             int bookedOrHeld = slotList.Count(s => s.Status == "Booked" || s.Status == "Held");
             int available = slotList.Count(s => s.Status == "Open");
 
-            double percentage = total > 0 ? (double)bookedOrHeld / total * 100 : 0;
+            double percentage = total > 0 ? Math.Round((double)bookedOrHeld / total * 100, 1) : 0;
 
             string status;
             string badgeClass;

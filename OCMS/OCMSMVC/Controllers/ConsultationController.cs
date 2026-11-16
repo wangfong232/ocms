@@ -59,26 +59,28 @@ namespace OCMSMVC.Controllers
 
             var appointments = await _consultationService.GetTodayQueueAsync(doctorId);
 
-            // Bệnh nhân đang được khám dở tại phòng
-            var activeApt = appointments.FirstOrDefault(a => a.Status == "InConsultation");
+            // Danh sách các ca đang khám dở / lưu tạm chờ kết quả
+            var activeConsultations = appointments.Where(a => a.Status == "InConsultation").ToList();
+            var activeApt = activeConsultations.FirstOrDefault();
 
-            // Bệnh nhân chờ tiếp theo theo STT (QueueNumber nhỏ nhất)
+            // Bệnh nhân chờ tiếp theo: Ưu tiên tuyệt đối [CẤP CỨU] lên đầu tiên, sau đó theo STT nhỏ nhất
             var nextWaitingApt = appointments
                 .Where(a => a.Status == "Arrived")
-                .OrderBy(a => a.QueueNumber ?? 999)
+                .OrderBy(a => (a.Reason != null && a.Reason.StartsWith("[CẤP CỨU")) ? 0 : 1)
+                .ThenBy(a => a.QueueNumber ?? 999)
                 .FirstOrDefault();
 
             int waitingCount = appointments.Count(a => a.Status == "Arrived");
             int examiningCount = appointments.Count(a => a.Status == "InConsultation");
             int completedCount = appointments.Count(a => a.Status == "Completed");
 
-            // Lọc theo tab
+            // Lọc theo tab (Bệnh nhân chờ khám ưu tiên ca cấp cứu lên trước)
             var filteredAppointments = filter switch
             {
                 "examining" => appointments.Where(a => a.Status == "InConsultation"),
                 "completed" => appointments.Where(a => a.Status == "Completed"),
-                "all" => appointments,
-                _ => appointments.Where(a => a.Status == "Arrived")
+                "all" => appointments.OrderBy(a => (a.Reason != null && a.Reason.StartsWith("[CẤP CỨU")) ? 0 : 1).ThenBy(a => a.QueueNumber ?? 999),
+                _ => appointments.Where(a => a.Status == "Arrived").OrderBy(a => (a.Reason != null && a.Reason.StartsWith("[CẤP CỨU")) ? 0 : 1).ThenBy(a => a.QueueNumber ?? 999)
             };
 
             var viewModelList = filteredAppointments.Select(a => new ConsultationQueueItemViewModel
@@ -105,7 +107,8 @@ namespace OCMSMVC.Controllers
             ViewBag.ExaminingCount = examiningCount;
             ViewBag.CompletedCount = completedCount;
             ViewBag.TotalCount = appointments.Count;
-            ViewBag.HasActiveConsultation = (activeApt != null);
+            ViewBag.HasActiveConsultation = activeConsultations.Any();
+            ViewBag.ActiveConsultations = activeConsultations;
             ViewBag.ActiveConsultationId = activeApt?.Id;
             ViewBag.ActivePatientName = activeApt?.Patient?.User?.FullName;
             ViewBag.ActiveQueueNumber = activeApt?.QueueNumber;
@@ -130,17 +133,9 @@ namespace OCMSMVC.Controllers
             }
 
             var pastRecords = await _consultationService.GetPatientPastMedicalHistoryAsync(appt.PatientId, id);
-            var todayQueue = await _consultationService.GetTodayQueueAsync(doctorId);
-            var activeConsultation = todayQueue.FirstOrDefault(a => a.Status == "InConsultation" && a.Id != id);
 
-            bool canCallNow = (activeConsultation == null) && (appt.Status == "Arrived");
+            bool canCallNow = (appt.Status == "Arrived");
             string? blockReason = null;
-            if (activeConsultation != null && appt.Status != "InConsultation")
-            {
-                var curName = activeConsultation.Patient?.User?.FullName ?? "bệnh nhân khác";
-                var curNum = activeConsultation.QueueNumber.HasValue ? $"#{activeConsultation.QueueNumber}" : "";
-                blockReason = $"Bác sĩ đang khám cho {curName} ({curNum})";
-            }
 
             var previewModel = new PatientPreviewViewModel
             {

@@ -1,7 +1,203 @@
 @model OCMSMVC.Models.AdminDepartmentViewModel
 @using BusinessObjects.Entities
-@{ ViewData["Title"] = "Quản lý khoa"; var departments = (IReadOnlyList<Department>)ViewBag.Departments; }
-<a asp-action="Index" class="text-decoration-none">← Quản trị</a><h1 class="h3 mt-2 mb-3">Khoa khám</h1>
-@if (TempData["ErrorMessage"] is string error) { <div class="alert alert-danger">@error</div> } @if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success">@success</div> }
-<div class="card border-0 shadow-sm mb-4"><div class="card-body"><h2 class="h5">@(Model.Id == 0 ? "Thêm khoa" : "Sửa khoa")</h2><form asp-action="SaveDepartment" method="post"><input asp-for="Id" type="hidden" /><div asp-validation-summary="ModelOnly" class="text-danger"></div><div class="row g-3"><div class="col-md-2"><label asp-for="Code" class="form-label">Mã khoa</label><input asp-for="Code" class="form-control" /></div><div class="col-md-4"><label asp-for="Name" class="form-label">Tên khoa</label><input asp-for="Name" class="form-control" /></div><div class="col-md-3"><label asp-for="BaseConsultationFee" class="form-label">Phí khám cơ bản</label><input asp-for="BaseConsultationFee" class="form-control" type="number" min="0" /></div><div class="col-md-3"><label asp-for="Description" class="form-label">Mô tả</label><input asp-for="Description" class="form-control" /></div></div><button class="btn btn-primary mt-3">Lưu khoa</button>@if (Model.Id != 0) { <a asp-action="Departments" class="btn btn-outline-secondary mt-3">Hủy sửa</a> }</form></div></div>
-<div class="card border-0 shadow-sm"><div class="table-responsive"><table class="table align-middle mb-0"><thead class="table-light"><tr><th>Mã</th><th>Tên khoa</th><th>Phí khám</th><th>Bác sĩ</th><th>Phòng</th><th></th></tr></thead><tbody>@foreach (var d in departments) { <tr><td>@d.Code</td><td>@d.Name<br /><small class="text-muted">@d.Description</small></td><td>@d.BaseConsultationFee.ToString("N0") đ</td><td>@d.Doctors.Count</td><td>@d.Rooms.Count</td><td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-action="Departments" asp-route-id="@d.Id">Sửa</a> <form asp-action="DeleteDepartment" method="post" class="d-inline" onsubmit="return confirm('Xóa khoa này? Chỉ xóa được khi chưa được tài khoản, phòng hoặc dịch vụ sử dụng.')"><input type="hidden" name="id" value="@d.Id" /><button class="btn btn-sm btn-outline-danger">Xóa</button></form></td></tr> }</tbody></table></div></div>
+@{
+    ViewData["Title"] = "Quản lý khoa khám";
+    var departments = (IReadOnlyList<Department>)ViewBag.Departments;
+}
+
+<div class="container py-4">
+    <!-- Header Banner -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 small">
+                    <li class="breadcrumb-item"><a asp-action="Index" class="text-decoration-none">Quản trị</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Khoa khám bệnh</li>
+                </ol>
+            </nav>
+            <h2 class="fw-bold text-dark mb-1">
+                <i class="bi bi-diagram-3-fill text-warning me-2"></i>Quản Lý Khoa Khám Bệnh
+            </h2>
+            <p class="text-muted mb-0 small">Thiết lập danh mục các chuyên khoa lâm sàng, phân bổ đội ngũ bác sĩ và phòng khám trực thuộc.</p>
+        </div>
+        <div class="mt-3 mt-md-0 d-flex gap-2">
+            <a asp-action="Index" class="btn btn-outline-secondary px-3 py-2 rounded-3 shadow-sm">
+                <i class="bi bi-arrow-left me-1"></i> Về tổng quan
+            </a>
+            <a href="#formDepartmentSection" class="btn btn-primary px-3 py-2 rounded-3 shadow-sm fw-semibold">
+                <i class="bi bi-plus-circle-fill me-1"></i> Thêm khoa mới
+            </a>
+        </div>
+    </div>
+
+    <!-- Thông báo Alert -->
+    @if (TempData["ErrorMessage"] is string error)
+    {
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm border-0 mb-4 rounded-3 d-flex align-items-center" role="alert">
+            <i class="bi bi-exclamation-octagon-fill me-2 fs-5"></i>
+            <div>@error</div>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["SuccessMessage"] is string success)
+    {
+        <div class="alert alert-success alert-dismissible fade show shadow-sm border-0 mb-4 rounded-3 d-flex align-items-center" role="alert">
+            <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+            <div>@success</div>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Bảng danh sách khoa khám -->
+    <div class="card border rounded-4 shadow-sm bg-white mb-5 overflow-hidden">
+        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+            <div class="fw-bold text-dark fs-6">
+                <i class="bi bi-list-stars text-warning me-2"></i>Danh Sách Các Chuyên Khoa
+            </div>
+            <span class="badge bg-light text-secondary border rounded-pill px-3 py-1 small">
+                Tổng cộng: <strong class="text-primary font-monospace">@departments.Count</strong> khoa
+            </span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light text-uppercase small text-muted">
+                    <tr>
+                        <th class="ps-4 py-3" style="width: 120px;">Mã khoa</th>
+                        <th class="py-3" style="width: 280px;">Tên khoa &amp; Chức năng</th>
+                        <th class="py-3">Đội ngũ Bác sĩ phụ trách</th>
+                        <th class="py-3">Phòng khám trực thuộc</th>
+                        <th class="py-3 text-end pe-4" style="width: 140px;">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var d in departments)
+                    {
+                        <tr>
+                            <td class="ps-4">
+                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill font-monospace px-3 py-2 fw-bold">
+                                    @d.Code
+                                </span>
+                            </td>
+                            <td>
+                                <div class="fw-bold text-dark fs-6">@d.Name</div>
+                                <small class="text-muted d-block mt-1">
+                                    @(string.IsNullOrEmpty(d.Description) ? "Chưa có mô tả chi tiết." : d.Description)
+                                </small>
+                            </td>
+                            <td>
+                                @if (d.Doctors != null && d.Doctors.Any())
+                                {
+                                    <div class="d-flex flex-wrap gap-1">
+                                        @foreach (var doc in d.Doctors)
+                                        {
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill py-1 px-3 fw-semibold">
+                                                <i class="bi bi-person-fill text-primary me-1"></i>
+                                                @(string.IsNullOrEmpty(doc.AcademicTitle) ? "BS" : doc.AcademicTitle). @(doc.User?.FullName ?? "Bác sĩ")
+                                            </span>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-light text-muted border rounded-pill px-3 py-1 small fst-italic">
+                                        Chưa phân công bác sĩ
+                                    </span>
+                                }
+                            </td>
+                            <td>
+                                @if (d.Rooms != null && d.Rooms.Any())
+                                {
+                                    <div class="d-flex flex-wrap gap-1">
+                                        @foreach (var rm in d.Rooms)
+                                        {
+                                            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle rounded-pill py-1 px-3 fw-semibold">
+                                                <i class="bi bi-door-open-fill me-1"></i>Phòng @rm.RoomNumber
+                                            </span>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-light text-muted border rounded-pill px-3 py-1 small fst-italic">
+                                        Chưa gán phòng khám
+                                    </span>
+                                }
+                            </td>
+                            <td class="text-end pe-4">
+                                <div class="btn-group btn-group-sm">
+                                    <a class="btn btn-outline-primary rounded-3 px-2 py-1 shadow-sm me-1" asp-action="Departments" asp-route-id="@d.Id" title="Chỉnh sửa thông tin khoa">
+                                        <i class="bi bi-pencil-square me-1"></i>Sửa
+                                    </a>
+                                    <form asp-action="DeleteDepartment" method="post" class="d-inline"
+                                          onsubmit="return confirm('Xác nhận xóa khoa này? Chỉ xóa được khi chưa có bác sĩ, phòng hoặc dịch vụ liên kết.')">
+                                        <input type="hidden" name="id" value="@d.Id" />
+                                        <button type="submit" class="btn btn-outline-danger rounded-3 px-2 py-1 shadow-sm" title="Xóa khoa khám">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    @if (departments.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-5">
+                                <i class="bi bi-inbox fs-1 text-secondary opacity-50 d-block mb-2"></i>
+                                Chưa có chuyên khoa nào được tạo trong hệ thống.
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Form Thêm / Sửa khoa -->
+    <div class="card border rounded-4 shadow-sm bg-white" id="formDepartmentSection">
+        <div class="card-header bg-white py-3 border-bottom d-flex align-items-center">
+            <div class="p-2 rounded-3 bg-warning-subtle text-warning-emphasis me-2">
+                <i class="bi bi-diagram-3-fill fs-5"></i>
+            </div>
+            <div>
+                <h5 class="fw-bold text-dark mb-0">@(Model.Id == 0 ? "Thêm Chuyên Khoa Mới" : "Chỉnh Sửa Chuyên Khoa")</h5>
+                <small class="text-muted">Nhập mã viết tắt và tên đầy đủ của chuyên khoa điều trị.</small>
+            </div>
+        </div>
+        <div class="card-body p-4">
+            <form asp-action="SaveDepartment" method="post">
+                <input asp-for="Id" type="hidden" />
+                <input asp-for="BaseConsultationFee" type="hidden" value="@Model.BaseConsultationFee" />
+                <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+                
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label asp-for="Code" class="form-label small fw-bold text-secondary">Mã khoa viết tắt <span class="text-danger">*</span></label>
+                        <input asp-for="Code" class="form-control rounded-3 py-2 text-uppercase font-monospace fw-bold" placeholder="VD: INT, PED, ENT..." required maxlength="20" />
+                        <span asp-validation-for="Code" class="text-danger small"></span>
+                        <small class="text-muted" style="font-size: 0.75rem;">Mã định danh khoa (duy nhất trên toàn hệ thống).</small>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Name" class="form-label small fw-bold text-secondary">Tên chuyên khoa <span class="text-danger">*</span></label>
+                        <input asp-for="Name" class="form-control rounded-3 py-2" placeholder="VD: Khoa Nội Tổng Quát..." required maxlength="100" />
+                        <span asp-validation-for="Name" class="text-danger small"></span>
+                    </div>
+                    <div class="col-md-5">
+                        <label asp-for="Description" class="form-label small fw-bold text-secondary">Mô tả chức năng nhiệm vụ</label>
+                        <input asp-for="Description" class="form-control rounded-3 py-2" placeholder="Khám và điều trị chuyên sâu các bệnh lý..." maxlength="500" />
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-2 d-flex justify-content-end gap-2">
+                    @if (Model.Id != 0)
+                    {
+                        <a asp-action="Departments" class="btn btn-outline-secondary px-3 py-2 rounded-3">Hủy bỏ</a>
+                    }
+                    <button type="submit" class="btn btn-primary px-4 py-2 rounded-3 shadow-sm fw-semibold">
+                        <i class="bi bi-save me-1"></i> @(Model.Id == 0 ? "Lưu Chuyên Khoa Mới" : "Cập Nhật Chuyên Khoa")
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

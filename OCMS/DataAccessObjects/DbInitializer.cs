@@ -256,11 +256,11 @@ namespace DataAccessObjects
                 ("Dược Sĩ Hoàng Hải Đăng", "pharmacist@ocms.clinic", "0900000006", "Staff"),
 
                 // Đội ngũ Bác sĩ chuyên khoa
-                ("BS. ThS. Nguyễn Văn An", "doctor.an@ocms.clinic", "0900000003", "Doctor"),
-                ("BS. CKI. Trần Thu Hà", "doctor.ha@ocms.clinic", "0900000007", "Doctor"),
-                ("BS. CKII. Lê Hoàng Long", "doctor.long@ocms.clinic", "0900000008", "Doctor"),
-                ("PGS.TS. Phạm Minh Tuấn", "doctor.tuan@ocms.clinic", "0900000009", "Doctor"),
-                ("BS. ThS. Vũ Mai Phương", "doctor.phuong@ocms.clinic", "0900000010", "Doctor"),
+                ("Nguyễn Văn An", "doctor.an@ocms.clinic", "0900000003", "Doctor"),
+                ("Trần Thu Hà", "doctor.ha@ocms.clinic", "0900000007", "Doctor"),
+                ("Lê Hoàng Long", "doctor.long@ocms.clinic", "0900000008", "Doctor"),
+                ("Phạm Minh Tuấn", "doctor.tuan@ocms.clinic", "0900000009", "Doctor"),
+                ("Vũ Mai Phương", "doctor.phuong@ocms.clinic", "0900000010", "Doctor"),
 
                 // Danh sách Bệnh nhân mẫu
                 ("Trần Quang Phong", "patient1@ocms.clinic", "0900000004", "Patient"),

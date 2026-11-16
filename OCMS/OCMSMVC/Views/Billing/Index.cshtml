@@ -39,7 +39,7 @@
                         <td class="fw-semibold">#@appointment.Id</td>
                         <td>@appointment.Patient.User.FullName<br /><small class="text-muted">@appointment.Patient.User.PhoneNumber</small></td>
                         <td>@appointment.Doctor.AcademicTitle @appointment.Doctor.User.FullName</td>
-                        <td>@appointment.AppointmentDate.AddHours(7).ToString("dd/MM/yyyy HH:mm")</td>
+                        <td>@appointment.AppointmentDate.ToString("dd/MM/yyyy HH:mm")</td>
                         <td class="text-end"><a class="btn btn-primary btn-sm" asp-action="Invoice" asp-route-id="@appointment.Id">Xem hóa đơn</a></td>
                     </tr>
                 }

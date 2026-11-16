@@ -74,7 +74,7 @@
 										<div class="p-2 border rounded bg-white small">
 											<div class="d-flex justify-content-between align-items-center mb-1">
 												<span class="fw-semibold">Ca Sáng (07:30 - 11:30)</span>
-												<span class="badge @doc.MorningCapacity.BadgeClass">@doc.MorningCapacity.LoadPercentage</span>
+												<span class="badge @doc.MorningCapacity.BadgeClass">Tải: @Math.Round(doc.MorningCapacity.LoadPercentage)%</span>
 											</div>
 											<small class="text-muted mt-1 d-block">Còn trống: @doc.MorningCapacity.AvailableSlots / @doc.MorningCapacity.TotalSlots</small>
 										</div>
@@ -83,7 +83,7 @@
 										<div class="p-2 border rounded bg-white small">
 											<div class="d-flex justify-content-between align-items-center mb-1">
 												<span class="fw-semibold">Ca Chiều (13:00 - 17:00)</span>
-												<span class="badge @doc.AfternoonCapacity.BadgeClass">@doc.AfternoonCapacity.LoadPercentage</span>
+												<span class="badge @doc.AfternoonCapacity.BadgeClass">Tải: @Math.Round(doc.AfternoonCapacity.LoadPercentage)%</span>
 											</div>
 											<small class="text-muted mt-1 d-block">Còn trống: @doc.AfternoonCapacity.AvailableSlots / @doc.AfternoonCapacity.TotalSlots</small>
 										</div>

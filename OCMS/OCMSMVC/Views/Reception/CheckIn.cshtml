@@ -138,8 +138,11 @@
                     var now = DateTime.Now;
                     var slotStart = Model.TimeSlot != null ? Model.AppointmentDate.Date.Add(Model.TimeSlot.StartTime) : Model.AppointmentDate;
                     var earliestCheckIn = slotStart.AddMinutes(-15);
-                    bool isTooEarly = Model.AppointmentDate.Date > DateTime.Today || (Model.AppointmentDate.Date == DateTime.Today && now < earliestCheckIn);
+                    // [DEMO MODE]: Tạm thời tắt kiểm tra giờ khám sớm để mở nút Check-in demo
+                    // bool isTooEarly = Model.AppointmentDate.Date > DateTime.Today || (Model.AppointmentDate.Date == DateTime.Today && now < earliestCheckIn); *
+                    bool isTooEarly = false;
 
+                    @* [DEMO MODE]: Tạm thời comment cảnh báo chưa đến khung giờ khám
                     if (isTooEarly)
                     {
                         <div class="alert alert-warning border-warning rounded-3 mb-3 d-flex align-items-center">
@@ -152,6 +155,7 @@
                             </div>
                         </div>
                     }
+                    *@
 
                     <form asp-action="ConfirmCheckIn" method="post">
                         @Html.AntiForgeryToken()

@@ -88,6 +88,8 @@ namespace Services
             }
 
             // 3. Kiểm tra khung giờ khám: Chỉ khi đến khung giờ khám (hoặc trước tối đa 15 phút) Staff mới được check-in
+            // [DEMO MODE]: Tạm thời tắt kiểm tra giờ khám sớm để tiện demo. Bỏ comment block dưới đây khi chạy thực tế.
+            /*
             var now = DateTime.Now;
             if (appointment.TimeSlot != null)
             {
@@ -99,6 +101,7 @@ namespace Services
                     return (false, $"Chưa đến khung giờ khám! Khung giờ hẹn: {appointment.TimeSlot.StartTime:hh\\:mm} - {appointment.TimeSlot.EndTime:hh\\:mm}. Lễ tân chỉ được tiếp đón check-in từ {earliestCheckInTime:HH:mm} (trước giờ hẹn 15 phút).", null, null);
                 }
             }
+            */
 
             // 4. Kiểm tra tính hợp lý y khoa của các chỉ số sinh hiệu (Triage Vital Signs)
             if (systolicBP < 60 || systolicBP > 250)
@@ -307,7 +310,8 @@ namespace Services
                 var currentApt = roomAppointments.FirstOrDefault(a => a.Status == "InConsultation");
                 var waitingApts = roomAppointments
                     .Where(a => a.Status == "Arrived")
-                    .OrderBy(a => a.QueueNumber ?? 999)
+                    .OrderBy(a => (a.Reason != null && a.Reason.StartsWith("[CẤP CỨU")) ? 0 : 1)
+                    .ThenBy(a => a.QueueNumber ?? 999)
                     .ThenBy(a => a.AppointmentDate)
                     .ToList();
 
@@ -324,7 +328,8 @@ namespace Services
                         PatientName = currentApt.Patient?.User?.FullName ?? "N/A",
                         MaskedPhone = MaskPhoneNumber(currentApt.Patient?.User?.PhoneNumber),
                         AppointmentTime = currentApt.AppointmentDate.ToString("HH:mm"),
-                        Status = currentApt.Status
+                        Status = currentApt.Status,
+                        IsEmergency = currentApt.Reason != null && currentApt.Reason.StartsWith("[CẤP CỨU")
                     } : null,
                     WaitingQueue = waitingApts.Select(w => new QueuePatientDto
                     {
@@ -333,7 +338,8 @@ namespace Services
                         PatientName = w.Patient?.User?.FullName ?? "N/A",
                         MaskedPhone = MaskPhoneNumber(w.Patient?.User?.PhoneNumber),
                         AppointmentTime = w.AppointmentDate.ToString("HH:mm"),
-                        Status = w.Status
+                        Status = w.Status,
+                        IsEmergency = w.Reason != null && w.Reason.StartsWith("[CẤP CỨU")
                     }).ToList()
                 };
 
@@ -356,14 +362,28 @@ namespace Services
                 return (false, $"Không thể gọi bệnh nhân này (Trạng thái hiện tại: {appointment.Status}). Chỉ có thể gọi bệnh nhân đã check-in đang chờ tại sảnh [Arrived].", null);
             }
 
-            // Complete any ongoing consultation of the same doctor
+            // Xử lý ca đang khám hiện tại của bác sĩ
             var todayApts = await _appointmentRepo.GetQueueBoardAppointmentsAsync(DateTime.Today);
             var previousInConsult = todayApts.FirstOrDefault(a => a.DoctorId == appointment.DoctorId && a.Status == "InConsultation" && a.Id != appointment.Id);
             if (previousInConsult != null)
             {
-                previousInConsult.Status = "Completed";
-                previousInConsult.UpdatedAt = DateTime.UtcNow;
-                await _appointmentRepo.UpdateAppointmentAsync(previousInConsult);
+                if (appointment.Reason != null && appointment.Reason.StartsWith("[CẤP CỨU"))
+                {
+                    // Ca cấp cứu khẩn cấp: Tạm hoãn ca đang khám hiện tại, đưa về trạng thái chờ [Arrived]
+                    // Tuyệt đối KHÔNG tự ý đánh Completed khi bác sĩ chưa chẩn đoán/kê đơn!
+                    previousInConsult.Status = "Arrived";
+                    previousInConsult.UpdatedAt = DateTime.UtcNow;
+                    await _appointmentRepo.UpdateAppointmentAsync(previousInConsult);
+                }
+                else if (previousInConsult.ServiceOrders.Any() || previousInConsult.MedicalRecord != null)
+                {
+                    // Ca trước đã được bác sĩ lưu tạm hoặc chỉ định cận lâm sàng (bệnh nhân đi làm xét nghiệm)
+                    // Cho phép tiếp nhận ca mới vào phòng khám
+                }
+                else
+                {
+                    return (false, $"Phòng khám hiện đang có bệnh nhân #{previousInConsult.QueueNumber} ({previousInConsult.Patient?.User?.FullName}) đang khám trong phòng. Bác sĩ cần lưu tạm hồ sơ hoặc hoàn thành ca khám trước khi gọi bệnh nhân tiếp theo.", null);
+                }
             }
 
             appointment.Status = "InConsultation";

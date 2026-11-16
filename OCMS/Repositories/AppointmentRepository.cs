@@ -220,6 +220,8 @@ namespace Repositories
                 .Include(a => a.Doctor).ThenInclude(d => d.User)
                 .Include(a => a.Doctor).ThenInclude(d => d.Department)
                 .Include(a => a.TimeSlot).ThenInclude(t => t.DoctorSchedule).ThenInclude(s => s.Room)
+                .Include(a => a.MedicalRecord)
+                .Include(a => a.ServiceOrders)
                 .Where(a => a.AppointmentDate.Date == targetDate 
                          && (a.Status == "Arrived" || a.Status == "InConsultation" || a.Status == "Completed"))
                 .OrderBy(a => a.QueueNumber ?? 999)
@@ -365,6 +367,7 @@ namespace Repositories
                                             .Include(a => a.Doctor).ThenInclude(d => d.DefaultRoom)
                                             .Include(a => a.TimeSlot).ThenInclude(ts => ts.DoctorSchedule).ThenInclude(s => s.Room)
                                             .Include(a => a.Payments)
+                                            .Include(a => a.MedicalRecord)
                                             .FirstOrDefaultAsync(a => a.Id == appointmentId && a.PatientId == patientId);
         }
 
@@ -375,6 +378,7 @@ namespace Repositories
                                             .Include(a => a.Doctor).ThenInclude(d => d.DefaultRoom)
                                             .Include(a => a.TimeSlot).ThenInclude(ts => ts.DoctorSchedule).ThenInclude(s => s.Room)
                                             .Include(a => a.Payments)
+                                            .Include(a => a.MedicalRecord)
                                             .Where(a => a.PatientId == patientId)
                                             .OrderByDescending(a => a.AppointmentDate)
                                             .ThenByDescending(a => a.TimeSlot.StartTime)

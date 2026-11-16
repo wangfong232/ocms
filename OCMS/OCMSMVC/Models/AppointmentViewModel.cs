@@ -28,6 +28,7 @@ namespace OCMSMVC.Models
         public string QrCodeToken { get; set; } = string.Empty;
         public int? QueueNumber { get; set; }
         public int RescheduledCount { get; set; } = 0;
+        public DateTime? FollowUpDate { get; set; }
 
         public bool CanReschedule
         {
@@ -140,5 +141,8 @@ namespace OCMSMVC.Models
         public int? QueueNumber { get; set; }
         public int RescheduledCount { get; set; }
         public DateTime CreatedAt { get; set; }
+        public DateTime? FollowUpDate { get; set; }
+        public string? Diagnosis { get; set; }
+        public string? DoctorNotes { get; set; }
     }
 }
