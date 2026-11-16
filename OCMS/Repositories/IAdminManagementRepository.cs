@@ -9,6 +9,7 @@ public interface IAdminManagementRepository
     Task<IReadOnlyList<Room>> GetRoomsAsync(CancellationToken cancellationToken = default);
     Task<User> CreateAccountAsync(User user, Doctor? doctor, CancellationToken cancellationToken = default);
     Task<bool> ToggleAccountAsync(int userId, int currentAdminId, CancellationToken cancellationToken = default);
+    Task UpdateAccountAsync(int userId, string fullName, string phone, int? departmentId, int? roomId, string? academicTitle, decimal? pricePerSlot, CancellationToken cancellationToken = default);
     Task SaveDepartmentAsync(Department department, CancellationToken cancellationToken = default);
     Task<bool> DeleteDepartmentAsync(int departmentId, CancellationToken cancellationToken = default);
     Task SaveRoomAsync(Room room, CancellationToken cancellationToken = default);

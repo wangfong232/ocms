@@ -7,12 +7,29 @@
 <div class="container py-4" style="max-width: 750px;">
 
 	<div class="text-center mb-4">
-		<div class="d-inline-flex p-3 rounded-circle bg-success-subtile text-success mb-2">
-			<i class="bi bi-check-circle-fill"></i>
+		<div class="d-inline-flex p-3 rounded-circle bg-success-subtle text-success mb-2">
+			<i class="bi bi-check-circle-fill fs-2"></i>
 		</div>
 		<h3 class="fw-bold text-success">Đặt Lịch Khám Thành Công</h3>
-		<p class="text-muted">Mã lịch hẹn của bạn là <strong class="text-dark">@Model.AppointmentId</strong></p>
+		<p class="text-muted">Mã lịch hẹn của bạn là <strong class="text-dark">#@Model.AppointmentId</strong></p>
 	</div>
+
+	@if (TempData["TicketEmail"] != null)
+	{
+		<div class="alert alert-success d-flex align-items-center mb-4 border-0 shadow-sm rounded-3">
+			<div>
+				<div class="fw-bold">Vé khám điện tử (E-Ticket) đã được gửi đến:</div>
+				<div class="text-primary font-monospace fw-bold">@TempData["TicketEmail"]</div>
+				<small class="text-muted">Nếu không thấy trong Hộp thư đến (Inbox), quý khách vui lòng kiểm tra thêm mục <b>Spam (Thư rác)</b> hoặc mục <b>Quảng cáo</b>.</small>
+			</div>
+		</div>
+	}
+	else if (TempData["WarningMessage"] != null)
+	{
+		<div class="alert alert-warning mb-4 rounded-3">
+			<i class="bi bi-exclamation-triangle me-1"></i> @TempData["WarningMessage"]
+		</div>
+	}
 
 	<!-- E-Ticket) -->
 	<div class="card border-1 rounded-4 overflow-hidden mb-4" id="printableTicket">
@@ -69,7 +86,7 @@
 					<hr class="my-2">
 					<div class="d-flex justify-content-between align-items-center">
 						<small class="text-muted">Phí khám:</small>
-						<span class="fw-bold text-danger">@Model.ConsultationFee.ToString() VNĐ</span>
+						<span class="fw-bold text-danger">@Model.ConsultationFee.ToString("N0") VNĐ</span>
 					</div>
 				</div>
 			</div>
@@ -77,6 +94,19 @@
 		<div class="card-footer bg-light p-3 small text-muted text-center">
 			<i class="bi bi-info-circle me-1"></i> Quý khách vui lòng có mặt trước giờ hẹn <strong>15 phút</strong> và đưa mã QR này cho nhân viên lễ tân để làm thủ tục vào phòng khám.
 		</div>
+	</div>
+
+	<div class="card border-0 bg-light p-3 rounded-3 mb-4">
+		<form asp-action="ResendTicket" method="post" id="resendTicketForm" class="d-flex flex-column flex-sm-row gap-2 align-items-center">
+			<input type="hidden" name="appointmentId" value="@Model.AppointmentId" />
+			<div class="input-group">
+				<span class="input-group-text bg-white"><i class="bi bi-envelope"></i></span>
+				<input type="email" name="email" class="form-control" placeholder="Nhập email nếu muốn gửi lại vé (VD: tranquangphong232@gmail.com)" required />
+			</div>
+			<button type="submit" id="btnResend" class="btn btn-outline-primary text-nowrap fw-semibold">
+				<i class="bi bi-send me-1"></i> Gửi lại vé qua Email
+			</button>
+		</form>
 	</div>
 
 	<div class="d-flex justify-content-between gap-2">
@@ -88,3 +118,15 @@
 		</button>
 	</div>
 </div>
+
+@section Scripts {
+	<script>
+		document.getElementById('resendTicketForm')?.addEventListener('submit', function () {
+			var btn = document.getElementById('btnResend');
+			if (btn) {
+				btn.disabled = true;
+				btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang gửi...';
+			}
+		});
+	</script>
+}

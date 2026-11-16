@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using OCMSMVC.Filters;
 using OCMSMVC.Models;
 using Services;
 using System;
@@ -8,6 +9,7 @@ using System.Threading.Tasks;
 
 namespace OCMSMVC.Controllers
 {
+    [RoleAuthorize("Doctor")]
     public class ConsultationController : Controller
     {
         private readonly IConsultationService _consultationService;
@@ -45,7 +47,7 @@ namespace OCMSMVC.Controllers
             return (true, doctor.Id, fullName);
         }
 
-        // 1. Hàng đợi bệnh nhân hôm nay
+        // 1. Hàng đợi bệnh nhân hôm nay (Chỉ hiển thị bệnh nhân đã được Staff confirm và cấp số)
         [HttpGet]
         public async Task<IActionResult> Queue(string filter = "waiting")
         {
@@ -57,17 +59,28 @@ namespace OCMSMVC.Controllers
 
             var appointments = await _consultationService.GetTodayQueueAsync(doctorId);
 
-            int waitingCount = appointments.Count(a => a.Status == "Confirmed" || a.Status == "Arrived");
+            // Danh sách các ca đang khám dở / lưu tạm chờ kết quả
+            var activeConsultations = appointments.Where(a => a.Status == "InConsultation").ToList();
+            var activeApt = activeConsultations.FirstOrDefault();
+
+            // Bệnh nhân chờ tiếp theo: Ưu tiên tuyệt đối [CẤP CỨU] lên đầu tiên, sau đó theo STT nhỏ nhất
+            var nextWaitingApt = appointments
+                .Where(a => a.Status == "Arrived")
+                .OrderBy(a => (a.Reason != null && a.Reason.StartsWith("[CẤP CỨU")) ? 0 : 1)
+                .ThenBy(a => a.QueueNumber ?? 999)
+                .FirstOrDefault();
+
+            int waitingCount = appointments.Count(a => a.Status == "Arrived");
             int examiningCount = appointments.Count(a => a.Status == "InConsultation");
             int completedCount = appointments.Count(a => a.Status == "Completed");
 
-            // Lọc theo tab
+            // Lọc theo tab (Bệnh nhân chờ khám ưu tiên ca cấp cứu lên trước)
             var filteredAppointments = filter switch
             {
                 "examining" => appointments.Where(a => a.Status == "InConsultation"),
                 "completed" => appointments.Where(a => a.Status == "Completed"),
-                "all" => appointments,
-                _ => appointments.Where(a => a.Status == "Confirmed" || a.Status == "Arrived")
+                "all" => appointments.OrderBy(a => (a.Reason != null && a.Reason.StartsWith("[CẤP CỨU")) ? 0 : 1).ThenBy(a => a.QueueNumber ?? 999),
+                _ => appointments.Where(a => a.Status == "Arrived").OrderBy(a => (a.Reason != null && a.Reason.StartsWith("[CẤP CỨU")) ? 0 : 1).ThenBy(a => a.QueueNumber ?? 999)
             };
 
             var viewModelList = filteredAppointments.Select(a => new ConsultationQueueItemViewModel
@@ -85,7 +98,8 @@ namespace OCMSMVC.Controllers
                 Reason = a.Reason,
                 Status = a.Status,
                 HasVitalSigns = a.VitalSigns != null,
-                HasMedicalRecord = a.MedicalRecord != null
+                HasMedicalRecord = a.MedicalRecord != null,
+                IsNextInLine = (nextWaitingApt != null && a.Id == nextWaitingApt.Id)
             }).ToList();
 
             ViewBag.CurrentFilter = filter;
@@ -93,8 +107,76 @@ namespace OCMSMVC.Controllers
             ViewBag.ExaminingCount = examiningCount;
             ViewBag.CompletedCount = completedCount;
             ViewBag.TotalCount = appointments.Count;
+            ViewBag.HasActiveConsultation = activeConsultations.Any();
+            ViewBag.ActiveConsultations = activeConsultations;
+            ViewBag.ActiveConsultationId = activeApt?.Id;
+            ViewBag.ActivePatientName = activeApt?.Patient?.User?.FullName;
+            ViewBag.ActiveQueueNumber = activeApt?.QueueNumber;
 
             return View(viewModelList);
+        }
+
+        // 1b. Xem trước hồ sơ bệnh án & tiền sử (Read-only Modal)
+        [HttpGet]
+        public async Task<IActionResult> GetPatientPreview(int id)
+        {
+            var (isDoctor, doctorId, _) = await GetCurrentDoctorAsync();
+            if (!isDoctor)
+            {
+                return Unauthorized();
+            }
+
+            var appt = await _consultationService.GetConsultationDetailAsync(id, doctorId);
+            if (appt == null)
+            {
+                return NotFound();
+            }
+
+            var pastRecords = await _consultationService.GetPatientPastMedicalHistoryAsync(appt.PatientId, id);
+
+            bool canCallNow = (appt.Status == "Arrived");
+            string? blockReason = null;
+
+            var previewModel = new PatientPreviewViewModel
+            {
+                AppointmentId = appt.Id,
+                QueueNumber = appt.QueueNumber,
+                TimeSlotDisplay = (appt.TimeSlot != null) 
+                    ? $"{appt.TimeSlot.StartTime:hh\\:mm} - {appt.TimeSlot.EndTime:hh\\:mm}" 
+                    : "",
+                Status = appt.Status,
+                Reason = appt.Reason,
+                PatientId = appt.PatientId,
+                PatientName = appt.Patient?.User?.FullName ?? "N/A",
+                Gender = appt.Patient?.Gender == "Male" ? "Nam" : (appt.Patient?.Gender == "Female" ? "Nữ" : "Khác"),
+                DateOfBirth = appt.Patient?.DateOfBirth ?? DateTime.MinValue,
+                Address = appt.Patient?.Address,
+                HealthInsuranceNumber = appt.Patient?.HealthInsuranceNumber,
+                PhoneNumber = appt.Patient?.User?.PhoneNumber ?? "N/A",
+
+                HasVitalSigns = appt.VitalSigns != null,
+                SystolicBP = appt.VitalSigns?.SystolicBP ?? 0,
+                DiastolicBP = appt.VitalSigns?.DiastolicBP ?? 0,
+                Pulse = appt.VitalSigns?.Pulse ?? 0,
+                Temperature = appt.VitalSigns?.Temperature ?? 0,
+                SpO2 = appt.VitalSigns?.SpO2 ?? 0,
+                Weight = appt.VitalSigns?.Weight ?? 0,
+                Height = appt.VitalSigns?.Height ?? 0,
+
+                PastHistory = pastRecords.Select(pr => new PastMedicalHistoryItemViewModel
+                {
+                    Date = pr.Appointment?.AppointmentDate ?? pr.CreatedAt,
+                    DoctorName = pr.Appointment?.Doctor?.User?.FullName ?? "Bác sĩ",
+                    Diagnosis = pr.Diagnosis,
+                    ICD10Code = pr.ICD10Code,
+                    DoctorNotes = pr.DoctorNotes
+                }).ToList(),
+
+                CanCallNow = canCallNow,
+                BlockReason = blockReason
+            };
+
+            return PartialView("_PatientPreviewModal", previewModel);
         }
 
         // 2. Màn hình Bàn khám bệnh (Consultation Workspace)
@@ -107,8 +189,13 @@ namespace OCMSMVC.Controllers
                 return RedirectToAction("Login", "Auth");
             }
 
-            // Tự động chuyển trạng thái sang "InConsultation" nếu mới bắt đầu vào khám
-            await _consultationService.StartConsultationAsync(id, doctorId);
+            // Tự động chuyển trạng thái sang "InConsultation" nếu mới bắt đầu vào khám (có kiểm tra ca khám trùng lặp)
+            var startResult = await _consultationService.StartConsultationAsync(id, doctorId);
+            if (!startResult.Success)
+            {
+                TempData["ErrorMessage"] = startResult.Message;
+                return RedirectToAction(nameof(Queue));
+            }
 
             var appt = await _consultationService.GetConsultationDetailAsync(id, doctorId);
             if (appt == null)
@@ -188,6 +275,30 @@ namespace OCMSMVC.Controllers
                     Name = s.Name,
                     Price = s.Price,
                     DepartmentName = s.Department?.Name
+                }).ToList(),
+
+                // Đơn thuốc điều trị
+                Prescriptions = appt.MedicalRecord?.PrescriptionDetails.Select(pd => new PrescriptionItemViewModel
+                {
+                    PrescriptionDetailId = pd.Id,
+                    MedicineId = pd.MedicineId,
+                    MedicineName = pd.Medicine?.Name ?? "Thuốc",
+                    Unit = pd.Medicine?.Unit ?? "Viên",
+                    UnitPrice = pd.UnitPrice,
+                    Quantity = pd.Quantity,
+                    DosageInstruction = pd.DosageInstruction,
+                    Status = pd.Status
+                }).OrderBy(p => p.PrescriptionDetailId).ToList() ?? new List<PrescriptionItemViewModel>(),
+
+                // Danh mục thuốc trong DB để bác sĩ chọn nhanh
+                AvailableMedicines = (await _consultationService.SearchMedicinesAsync(null)).Select(m => new MedicineOptionViewModel
+                {
+                    MedicineId = m.Id,
+                    Name = m.Name,
+                    Unit = m.Unit,
+                    Price = m.Price,
+                    StockQuantity = m.StockQuantity,
+                    Description = m.Description
                 }).ToList()
             };
 
@@ -306,6 +417,121 @@ namespace OCMSMVC.Controllers
             }
 
             var result = await _consultationService.DeleteServiceOrderAsync(serviceOrderId, doctorId);
+            if (result.Success)
+            {
+                TempData["SuccessMessage"] = result.Message;
+            }
+            else
+            {
+                TempData["ErrorMessage"] = result.Message;
+            }
+
+            return RedirectToAction(nameof(Examine), new { id = appointmentId });
+        }
+
+        // 7. Tìm kiếm thuốc từ DB
+        [HttpGet]
+        public async Task<IActionResult> SearchMedicines(string? term)
+        {
+            var (isDoctor, _, _) = await GetCurrentDoctorAsync();
+            if (!isDoctor)
+            {
+                return Unauthorized();
+            }
+
+            var medicines = await _consultationService.SearchMedicinesAsync(term);
+            var results = medicines.Select(m => new
+            {
+                id = m.Id,
+                name = m.Name,
+                unit = m.Unit,
+                price = m.Price,
+                priceDisplay = m.Price.ToString("N0") + " đ",
+                stock = m.StockQuantity,
+                description = m.Description ?? ""
+            });
+
+            return Json(results);
+        }
+
+        // 8. Thêm thuốc vào đơn thuốc
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddPrescriptionItem(int appointmentId, int medicineId, int quantity, string? dosageInstruction)
+        {
+            var (isDoctor, doctorId, _) = await GetCurrentDoctorAsync();
+            if (!isDoctor)
+            {
+                return Unauthorized();
+            }
+
+            var result = await _consultationService.AddPrescriptionItemAsync(
+                appointmentId, doctorId, medicineId, quantity, dosageInstruction ?? string.Empty);
+
+            bool isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest" ||
+                          Request.Headers["Accept"].ToString().Contains("application/json");
+
+            if (isAjax)
+            {
+                if (!result.Success || result.Item == null)
+                {
+                    return Json(new { success = false, message = result.Message });
+                }
+
+                return Json(new
+                {
+                    success = true,
+                    message = result.Message,
+                    item = new
+                    {
+                        prescriptionDetailId = result.Item.Id,
+                        medicineId = result.Item.MedicineId,
+                        medicineName = result.Item.Medicine?.Name ?? "Thuốc",
+                        unit = result.Item.Medicine?.Unit ?? "Viên",
+                        unitPrice = result.Item.UnitPrice,
+                        unitPriceDisplay = result.Item.UnitPrice.ToString("N0") + " đ",
+                        quantity = result.Item.Quantity,
+                        totalPrice = result.Item.Quantity * result.Item.UnitPrice,
+                        totalPriceDisplay = (result.Item.Quantity * result.Item.UnitPrice).ToString("N0") + " đ",
+                        dosageInstruction = result.Item.DosageInstruction
+                    }
+                });
+            }
+
+            if (result.Success)
+            {
+                TempData["SuccessMessage"] = result.Message;
+            }
+            else
+            {
+                TempData["ErrorMessage"] = result.Message;
+            }
+
+            return RedirectToAction(nameof(Examine), new { id = appointmentId });
+        }
+
+        // 9. Xóa thuốc khỏi đơn thuốc
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeletePrescriptionItem(int appointmentId, int prescriptionDetailId)
+        {
+            var (isDoctor, doctorId, _) = await GetCurrentDoctorAsync();
+            if (!isDoctor)
+            {
+                return Unauthorized();
+            }
+
+            var result = await _consultationService.DeletePrescriptionItemAsync(
+                appointmentId, doctorId, prescriptionDetailId);
+
+            bool isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest" ||
+                          Request.Headers["Accept"].ToString().Contains("application/json");
+
+            if (isAjax)
+            {
+                return Json(new { success = result.Success, message = result.Message });
+            }
+
             if (result.Success)
             {
                 TempData["SuccessMessage"] = result.Message;

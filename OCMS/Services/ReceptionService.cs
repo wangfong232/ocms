@@ -62,6 +62,81 @@ namespace Services
                 return (false, "Lịch hẹn không tồn tại trong hệ thống.", null, null);
             }
 
+            // 1. Kiểm tra trạng thái ca hẹn: Không cho phép check-in nếu đã hoàn tất, đã hủy hoặc đang khám
+            if (appointment.Status == "Cancelled")
+            {
+                return (false, "Lịch hẹn này đã bị hủy bỏ, không thể thực hiện check-in.", null, null);
+            }
+            if (appointment.Status == "Completed")
+            {
+                return (false, "Lịch hẹn này đã hoàn tất khám bệnh từ trước.", null, null);
+            }
+            if (appointment.Status == "InConsultation")
+            {
+                return (false, "Bệnh nhân hiện đang ở trong phòng khám với bác sĩ.", null, null);
+            }
+
+            // 2. Kiểm tra ngày khám: Chỉ cho phép check-in vào đúng ngày hẹn khám
+            var today = DateTime.Today;
+            if (appointment.AppointmentDate.Date > today)
+            {
+                return (false, $"Chưa đến ngày khám của bệnh nhân (Ngày hẹn: {appointment.AppointmentDate:dd/MM/yyyy}). Bệnh nhân chỉ được tiếp đón vào đúng ngày hẹn.", null, null);
+            }
+            if (appointment.AppointmentDate.Date < today)
+            {
+                return (false, $"Lịch hẹn đã quá hạn khám từ ngày {appointment.AppointmentDate:dd/MM/yyyy}.", null, null);
+            }
+
+            // 3. Kiểm tra khung giờ khám: Chỉ khi đến khung giờ khám (hoặc trước tối đa 15 phút) Staff mới được check-in
+            // [DEMO MODE]: Tạm thời tắt kiểm tra giờ khám sớm để tiện demo. Bỏ comment block dưới đây khi chạy thực tế.
+            /*
+            var now = DateTime.Now;
+            if (appointment.TimeSlot != null)
+            {
+                var slotStartTime = appointment.AppointmentDate.Date.Add(appointment.TimeSlot.StartTime);
+                var earliestCheckInTime = slotStartTime.AddMinutes(-15);
+
+                if (now < earliestCheckInTime)
+                {
+                    return (false, $"Chưa đến khung giờ khám! Khung giờ hẹn: {appointment.TimeSlot.StartTime:hh\\:mm} - {appointment.TimeSlot.EndTime:hh\\:mm}. Lễ tân chỉ được tiếp đón check-in từ {earliestCheckInTime:HH:mm} (trước giờ hẹn 15 phút).", null, null);
+                }
+            }
+            */
+
+            // 4. Kiểm tra tính hợp lý y khoa của các chỉ số sinh hiệu (Triage Vital Signs)
+            if (systolicBP < 60 || systolicBP > 250)
+            {
+                return (false, "Huyết áp tâm thu không hợp lý (chỉ số y khoa chuẩn: 60 - 250 mmHg).", null, null);
+            }
+            if (diastolicBP < 40 || diastolicBP > 150)
+            {
+                return (false, "Huyết áp tâm trương không hợp lý (chỉ số y khoa chuẩn: 40 - 150 mmHg).", null, null);
+            }
+            if (systolicBP <= diastolicBP)
+            {
+                return (false, "Chỉ số bất thường: Huyết áp tâm thu bắt buộc phải lớn hơn huyết áp tâm trương.", null, null);
+            }
+            if (pulse < 40 || pulse > 220)
+            {
+                return (false, "Chỉ số mạch / nhịp tim không hợp lý (phải từ 40 đến 220 nhịp/phút).", null, null);
+            }
+            if (spO2 < 70 || spO2 > 100)
+            {
+                return (false, "Chỉ số nồng độ oxy máu SpO2 không hợp lý (phải từ 70% đến 100%).", null, null);
+            }
+            if (temperature < 34.0m || temperature > 43.0m)
+            {
+                return (false, "Chỉ số thân nhiệt không hợp lý (phải từ 34.0°C đến 43.0°C).", null, null);
+            }
+            if (weight.HasValue && (weight.Value < 1m || weight.Value > 300m))
+            {
+                return (false, "Chỉ số cân nặng không hợp lý (phải từ 1 đến 300 kg).", null, null);
+            }
+            if (height.HasValue && (height.Value < 30m || height.Value > 250m))
+            {
+                return (false, "Chỉ số chiều cao không hợp lý (phải từ 30 đến 250 cm).", null, null);
+            }
+
             // Assign queue number if not yet assigned
             if (!appointment.QueueNumber.HasValue)
             {
@@ -123,14 +198,24 @@ namespace Services
             bool isEmergency,
             string? reason)
         {
-            if (string.IsNullOrWhiteSpace(fullName))
+            if (string.IsNullOrWhiteSpace(fullName) || fullName.Trim().Length < 2)
             {
-                return (false, "Vui lòng nhập họ và tên bệnh nhân.", null);
+                return (false, "Họ và tên bệnh nhân không hợp lệ (tối thiểu 2 ký tự).", null);
             }
 
-            if (string.IsNullOrWhiteSpace(phone))
+            if (string.IsNullOrWhiteSpace(phone) || !System.Text.RegularExpressions.Regex.IsMatch(phone.Trim(), @"^0[0-9]{9}$"))
             {
-                return (false, "Vui lòng nhập số điện thoại bệnh nhân.", null);
+                return (false, "Số điện thoại không hợp lệ (bắt buộc gồm 10 chữ số và bắt đầu bằng số 0).", null);
+            }
+
+            if (dob > DateTime.Today)
+            {
+                return (false, "Ngày sinh không hợp lý (ngày sinh không thể nằm trong tương lai).", null);
+            }
+
+            if (dob < DateTime.Today.AddYears(-130))
+            {
+                return (false, "Ngày sinh không hợp lý (tuổi không thể vượt quá 130).", null);
             }
 
             var schedule = await _appointmentRepo.GetDoctorScheduleTodayAsync(doctorId, DateTime.Today);
@@ -225,7 +310,8 @@ namespace Services
                 var currentApt = roomAppointments.FirstOrDefault(a => a.Status == "InConsultation");
                 var waitingApts = roomAppointments
                     .Where(a => a.Status == "Arrived")
-                    .OrderBy(a => a.QueueNumber ?? 999)
+                    .OrderBy(a => (a.Reason != null && a.Reason.StartsWith("[CẤP CỨU")) ? 0 : 1)
+                    .ThenBy(a => a.QueueNumber ?? 999)
                     .ThenBy(a => a.AppointmentDate)
                     .ToList();
 
@@ -242,7 +328,8 @@ namespace Services
                         PatientName = currentApt.Patient?.User?.FullName ?? "N/A",
                         MaskedPhone = MaskPhoneNumber(currentApt.Patient?.User?.PhoneNumber),
                         AppointmentTime = currentApt.AppointmentDate.ToString("HH:mm"),
-                        Status = currentApt.Status
+                        Status = currentApt.Status,
+                        IsEmergency = currentApt.Reason != null && currentApt.Reason.StartsWith("[CẤP CỨU")
                     } : null,
                     WaitingQueue = waitingApts.Select(w => new QueuePatientDto
                     {
@@ -251,7 +338,8 @@ namespace Services
                         PatientName = w.Patient?.User?.FullName ?? "N/A",
                         MaskedPhone = MaskPhoneNumber(w.Patient?.User?.PhoneNumber),
                         AppointmentTime = w.AppointmentDate.ToString("HH:mm"),
-                        Status = w.Status
+                        Status = w.Status,
+                        IsEmergency = w.Reason != null && w.Reason.StartsWith("[CẤP CỨU")
                     }).ToList()
                 };
 
@@ -269,14 +357,33 @@ namespace Services
                 return (false, "Lịch hẹn không tồn tại.", null);
             }
 
-            // Complete any ongoing consultation of the same doctor
+            if (appointment.Status != "Arrived")
+            {
+                return (false, $"Không thể gọi bệnh nhân này (Trạng thái hiện tại: {appointment.Status}). Chỉ có thể gọi bệnh nhân đã check-in đang chờ tại sảnh [Arrived].", null);
+            }
+
+            // Xử lý ca đang khám hiện tại của bác sĩ
             var todayApts = await _appointmentRepo.GetQueueBoardAppointmentsAsync(DateTime.Today);
             var previousInConsult = todayApts.FirstOrDefault(a => a.DoctorId == appointment.DoctorId && a.Status == "InConsultation" && a.Id != appointment.Id);
             if (previousInConsult != null)
             {
-                previousInConsult.Status = "Completed";
-                previousInConsult.UpdatedAt = DateTime.UtcNow;
-                await _appointmentRepo.UpdateAppointmentAsync(previousInConsult);
+                if (appointment.Reason != null && appointment.Reason.StartsWith("[CẤP CỨU"))
+                {
+                    // Ca cấp cứu khẩn cấp: Tạm hoãn ca đang khám hiện tại, đưa về trạng thái chờ [Arrived]
+                    // Tuyệt đối KHÔNG tự ý đánh Completed khi bác sĩ chưa chẩn đoán/kê đơn!
+                    previousInConsult.Status = "Arrived";
+                    previousInConsult.UpdatedAt = DateTime.UtcNow;
+                    await _appointmentRepo.UpdateAppointmentAsync(previousInConsult);
+                }
+                else if (previousInConsult.ServiceOrders.Any() || previousInConsult.MedicalRecord != null)
+                {
+                    // Ca trước đã được bác sĩ lưu tạm hoặc chỉ định cận lâm sàng (bệnh nhân đi làm xét nghiệm)
+                    // Cho phép tiếp nhận ca mới vào phòng khám
+                }
+                else
+                {
+                    return (false, $"Phòng khám hiện đang có bệnh nhân #{previousInConsult.QueueNumber} ({previousInConsult.Patient?.User?.FullName}) đang khám trong phòng. Bác sĩ cần lưu tạm hồ sơ hoặc hoàn thành ca khám trước khi gọi bệnh nhân tiếp theo.", null);
+                }
             }
 
             appointment.Status = "InConsultation";
@@ -295,6 +402,11 @@ namespace Services
             if (appointment == null)
             {
                 return (false, "Lịch hẹn không tồn tại.");
+            }
+
+            if (appointment.Status != "InConsultation")
+            {
+                return (false, $"Không thể hoàn tất ca khám này (Trạng thái hiện tại: {appointment.Status}). Chỉ có thể hoàn tất ca khám đang diễn ra trong phòng [InConsultation].");
             }
 
             appointment.Status = "Completed";

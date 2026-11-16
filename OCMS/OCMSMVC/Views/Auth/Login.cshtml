@@ -11,14 +11,6 @@
                 <small class="text-white-50">Đăng nhập tài khoản làm việc & đặt khám</small>
             </div>
             <div class="card-body p-4">
-                @if (TempData["SuccessMessage"] != null)
-                {
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        <i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                }
-
                 @if (!ViewData.ModelState.IsValid && ViewData.ModelState[string.Empty]?.Errors.Count > 0)
                 {
                     <div class="alert alert-danger" role="alert">
@@ -27,7 +19,7 @@
                     </div>
                 }
 
-                <form asp-action="Login" method="post">
+                <form asp-action="Login" asp-route-returnUrl="@ViewBag.ReturnUrl" method="post">
                     <div class="mb-3">
                         <label asp-for="Email" class="form-label fw-semibold">Địa chỉ Email</label>
                         <div class="input-group">
@@ -68,27 +60,43 @@
                     <div class="text-muted small fw-bold mb-2 text-center text-uppercase">
                         <i class="text-warning me-1"></i>Chọn nhanh tài khoản test (Demo)
                     </div>
-                    <div class="row g-2">
-                        <div class="col-6">
+                    <div class="row g-2 mb-2">
+                        <div class="col-4">
                             <button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="fillTestAccount('admin@ocms.clinic')">
                                 <i class="bi bi-shield-lock me-1"></i>Admin
                             </button>
                         </div>
-                        <div class="col-6">
-                            <button type="button" class="btn btn-sm btn-outline-success w-100" onclick="fillTestAccount('doctor@ocms.clinic')">
-                                <i class="bi bi-heart-pulse me-1"></i>Bác sĩ
-                            </button>
-                        </div>
-                        <div class="col-6">
+                        <div class="col-4">
                             <button type="button" class="btn btn-sm btn-outline-info w-100" onclick="fillTestAccount('staff@ocms.clinic')">
                                 <i class="bi bi-person-badge me-1"></i>Lễ tân
                             </button>
                         </div>
-                        <div class="col-6">
+                        <div class="col-4">
                             <button type="button" class="btn btn-sm btn-outline-primary w-100" onclick="fillTestAccount('patient@ocms.clinic')">
                                 <i class="bi bi-person me-1"></i>Bệnh nhân
                             </button>
                         </div>
+                    </div>
+
+                    <div class="text-muted small fw-bold mb-1 text-center" style="font-size: 0.8rem;">
+                        <i class="bi bi-hospital me-1"></i>Bác sĩ 5 Chuyên Khoa:
+                    </div>
+                    <div class="d-flex flex-wrap gap-1 justify-content-center">
+                        <button type="button" class="btn btn-sm btn-outline-success py-1 px-2" style="font-size: 0.8rem;" onclick="fillTestAccount('doctor@ocms.clinic')">
+                            BS. An (Nội)
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-success py-1 px-2" style="font-size: 0.8rem;" onclick="fillTestAccount('doctor.ha@ocms.clinic')">
+                            BS. Hà (Nhi)
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-success py-1 px-2" style="font-size: 0.8rem;" onclick="fillTestAccount('doctor.long@ocms.clinic')">
+                            BS. Long (TMH)
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-success py-1 px-2" style="font-size: 0.8rem;" onclick="fillTestAccount('doctor.tuan@ocms.clinic')">
+                            PGS. Tuấn (Tim)
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-success py-1 px-2" style="font-size: 0.8rem;" onclick="fillTestAccount('doctor.phuong@ocms.clinic')">
+                            BS. Phương (Da liễu)
+                        </button>
                     </div>
                 </div>
             </div>

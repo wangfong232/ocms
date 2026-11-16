@@ -22,6 +22,8 @@ namespace BusinessObjects.Entities
         [Required, MaxLength(20)]
         public string Status { get; set; } = "Open"; // Open, Hold, Booked
 
+        public DateTime? HoldExpiresAt { get; set; }
+
         //Concurrency token
         [Timestamp]
         public byte[] RowVersion { get; set; } = null!;

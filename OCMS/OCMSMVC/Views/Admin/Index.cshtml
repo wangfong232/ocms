@@ -1,11 +1,126 @@
 @model OCMSMVC.Models.AdminDashboardViewModel
-@{ ViewData["Title"] = "Quản trị phòng khám"; }
-<div class="mb-4"><p class="text-uppercase text-primary fw-semibold small mb-1">Quản trị hệ thống</p><h1 class="h3">Danh mục và tài khoản phòng khám</h1></div>
-@if (TempData["ErrorMessage"] is string error) { <div class="alert alert-danger">@error</div> }
-@if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success">@success</div> }
-<div class="row g-3">
-    <div class="col-md-4"><a class="card card-body h-100 text-decoration-none shadow-sm" asp-action="Users"><span class="text-muted">Tài khoản</span><strong class="display-6">@Model.Users.Count</strong><span>Quản lý nhân viên, bác sĩ và trạng thái truy cập →</span></a></div>
-    <div class="col-md-4"><a class="card card-body h-100 text-decoration-none shadow-sm" asp-action="Departments"><span class="text-muted">Khoa</span><strong class="display-6">@Model.Departments.Count</strong><span>Cấu hình khoa và phí khám cơ bản →</span></a></div>
-    <div class="col-md-4"><a class="card card-body h-100 text-decoration-none shadow-sm" asp-action="Rooms"><span class="text-muted">Phòng</span><strong class="display-6">@Model.Rooms.Count</strong><span>Quản lý phòng và trạng thái hoạt động →</span></a></div>
+@{ 
+    ViewData["Title"] = "Quản trị phòng khám"; 
+}
+
+<div class="container py-4">
+    <!-- Header banner -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom">
+        <div>
+            <div class="badge bg-primary-subtle text-primary fw-semibold px-3 py-2 mb-2 rounded-pill">
+                <i class="bi bi-shield-check me-1"></i> Trung Tâm Quản Trị Hệ Thống
+            </div>
+            <h2 class="fw-bold text-dark mb-1">Tổng Quan Vận Hành Phòng Khám</h2>
+            <p class="text-muted mb-0">Theo dõi doanh thu, phân bổ nhân sự, danh mục chuyên khoa và tình trạng cơ sở vật chất.</p>
+        </div>
+        <div class="mt-3 mt-md-0">
+            <a asp-action="Dashboard" class="btn btn-primary px-3 py-2 shadow-sm fw-semibold">
+                <i class="bi bi-graph-up-arrow me-1"></i> Xem Báo Cáo Doanh Thu
+            </a>
+        </div>
+    </div>
+
+    @if (TempData["ErrorMessage"] is string error) 
+    { 
+        <div class="alert alert-danger shadow-sm border-0 mb-4 rounded-3 d-flex align-items-center">
+            <i class="bi bi-exclamation-octagon-fill me-2 fs-5"></i>
+            <div>@error</div>
+        </div> 
+    }
+    @if (TempData["SuccessMessage"] is string success) 
+    { 
+        <div class="alert alert-success shadow-sm border-0 mb-4 rounded-3 d-flex align-items-center">
+            <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+            <div>@success</div>
+        </div> 
+    }
+
+    <!-- Quick Navigation Cards -->
+    <div class="row g-4 mb-4">
+        <!-- 1. Thống kê & Doanh thu -->
+        <div class="col-md-6 col-lg-3">
+            <a class="card h-100 text-decoration-none border rounded-4 bg-white p-4 shadow-sm admin-nav-card" asp-action="Dashboard">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div class="p-3 rounded-4 bg-primary-subtle text-primary">
+                        <i class="bi bi-bar-chart-line-fill fs-3"></i>
+                    </div>
+                    <span class="badge bg-primary text-white rounded-pill px-2 py-1 small">Analytics</span>
+                </div>
+                <h5 class="fw-bold text-dark mb-1">Báo Cáo Doanh Thu</h5>
+                <p class="text-muted small mb-3">Biểu đồ doanh thu theo ngày, tháng, chuyên khoa và bác sĩ.</p>
+                <div class="text-primary fw-semibold small mt-auto d-flex align-items-center">
+                    Xem chi tiết <i class="bi bi-arrow-right ms-1"></i>
+                </div>
+            </a>
+        </div>
+
+        <!-- 2. Quản lý Nhân sự & Bác sĩ -->
+        <div class="col-md-6 col-lg-3">
+            <a class="card h-100 text-decoration-none border rounded-4 bg-white p-4 shadow-sm admin-nav-card" asp-action="Users">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div class="p-3 rounded-4 bg-success-subtle text-success">
+                        <i class="bi bi-people-fill fs-3"></i>
+                    </div>
+                    <span class="fs-4 fw-bold text-dark font-monospace">@Model.Users.Count</span>
+                </div>
+                <h5 class="fw-bold text-dark mb-1">Tài Khoản & Nhân Sự</h5>
+                <p class="text-muted small mb-3">Quản lý đội ngũ bác sĩ, nhân viên lễ tân, dược sĩ và trạng thái tài khoản.</p>
+                <div class="text-success fw-semibold small mt-auto d-flex align-items-center">
+                    Quản lý tài khoản <i class="bi bi-arrow-right ms-1"></i>
+                </div>
+            </a>
+        </div>
+
+        <!-- 3. Chuyên khoa khám -->
+        <div class="col-md-6 col-lg-3">
+            <a class="card h-100 text-decoration-none border rounded-4 bg-white p-4 shadow-sm admin-nav-card" asp-action="Departments">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div class="p-3 rounded-4 bg-info-subtle text-info">
+                        <i class="bi bi-diagram-3-fill fs-3"></i>
+                    </div>
+                    <span class="fs-4 fw-bold text-dark font-monospace">@Model.Departments.Count</span>
+                </div>
+                <h5 class="fw-bold text-dark mb-1">Chuyên Khoa Khám</h5>
+                <p class="text-muted small mb-3">Cấu hình danh mục chuyên khoa, mô tả và bảng giá khám niêm yết.</p>
+                <div class="text-info fw-semibold small mt-auto d-flex align-items-center">
+                    Cấu hình chuyên khoa <i class="bi bi-arrow-right ms-1"></i>
+                </div>
+            </a>
+        </div>
+
+        <!-- 4. Phòng khám -->
+        <div class="col-md-6 col-lg-3">
+            <a class="card h-100 text-decoration-none border rounded-4 bg-white p-4 shadow-sm admin-nav-card" asp-action="Rooms">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div class="p-3 rounded-4 bg-secondary-subtle text-secondary">
+                        <i class="bi bi-door-open-fill fs-3"></i>
+                    </div>
+                    <span class="fs-4 fw-bold text-dark font-monospace">@Model.Rooms.Count</span>
+                </div>
+                <h5 class="fw-bold text-dark mb-1">Phòng Khám Y Tế</h5>
+                <p class="text-muted small mb-3">Quản lý danh sách số phòng, phân khoa và trạng thái sẵn sàng hoạt động.</p>
+                <div class="text-secondary fw-semibold small mt-auto d-flex align-items-center">
+                    Quản lý phòng <i class="bi bi-arrow-right ms-1"></i>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Quick info alert banner -->
+    <div class="card border rounded-4 p-3 bg-light d-flex flex-row align-items-center shadow-sm">
+        <i class="bi bi-info-circle-fill fs-4 text-primary me-3 flex-shrink-0"></i>
+        <div class="small text-muted">
+            <strong class="text-dark">Lưu ý quản trị:</strong> Tài khoản Bác sĩ được liên kết chặt chẽ với Lịch trực và Phòng làm việc mặc định. Khi thêm mới nhân sự, hệ thống sẽ tự động cấp mã nhân viên và kích hoạt quyền tương ứng.
+        </div>
+    </div>
 </div>
-<div class="alert alert-info mt-4 mb-0">Tài khoản bác sĩ được tạo cùng hồ sơ bác sĩ. Tài khoản bệnh nhân được đăng ký qua trang đăng ký.</div>
+
+<style>
+    .admin-nav-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .admin-nav-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08) !important;
+    }
+</style>

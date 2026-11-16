@@ -22,6 +22,8 @@ namespace Repositories
 
         // 5. Ghi nhận bệnh án EMR (Thêm mới hoặc Cập nhật)
         Task<bool> SaveMedicalRecordAsync(MedicalRecord medicalRecord);
+        Task<MedicalRecord> EnsureMedicalRecordAsync(int appointmentId);
+        Task<MedicalRecord?> GetMedicalRecordByAppointmentIdAsync(int appointmentId);
 
         // 6. Chỉ định dịch vụ xét nghiệm (Tạo / Cập nhật kết quả / Xóa khi chưa thanh toán)
         Task<bool> AddServiceOrderAsync(ServiceOrder serviceOrder);
@@ -30,6 +32,13 @@ namespace Repositories
 
         // 7. Cập nhật trạng thái lịch hẹn (InConsultation, Completed)
         Task<bool> UpdateAppointmentStatusAsync(int appointmentId, string status);
+
+        // 8. Thuốc & Kê đơn thuốc (Medicines & Prescriptions)
+        Task<List<Medicine>> SearchMedicinesAsync(string? keyword);
+        Task<Medicine?> GetMedicineByIdAsync(int medicineId);
+        Task<bool> AddPrescriptionDetailAsync(PrescriptionDetail prescriptionDetail);
+        Task<bool> DeletePrescriptionDetailAsync(int prescriptionDetailId);
+        Task<bool> UpdatePrescriptionsStatusByMedicalRecordIdAsync(int medicalRecordId, string status);
     }
 }
 

@@ -10,7 +10,7 @@
 			</div>
 			<h2 class="fw-bold text-danger">403 - Quyền truy cập bị từ chối</h2>
 			<p class="text-muted fs-5 mt-2">
-				Tài khoản của bạn không có quyền truy cập vào trang này.
+				@(TempData["ErrorMessage"] ?? "Tài khoản của bạn không có quyền truy cập vào chức năng hoặc trang này.")
 			</p>
 			<div class="mt-4">
 				<a asp-controller="Home" asp-action="Index" class="btn btn-outline-primary px-4 py-2 fw-semibold">

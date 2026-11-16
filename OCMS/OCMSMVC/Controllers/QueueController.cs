@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using OCMSMVC.Filters;
+using OCMSMVC.Hubs;
 using Services;
 using System.Threading.Tasks;
 
@@ -8,10 +11,12 @@ namespace OCMSMVC.Controllers
     public class QueueController : Controller
     {
         private readonly IReceptionService _receptionService;
+        private readonly IHubContext<QueueHub> _hubContext;
 
-        public QueueController(IReceptionService receptionService)
+        public QueueController(IReceptionService receptionService, IHubContext<QueueHub> hubContext)
         {
             _receptionService = receptionService;
+            _hubContext = hubContext;
         }
 
         private bool RequireClinicPersonnel()
@@ -38,13 +43,9 @@ namespace OCMSMVC.Controllers
 
         // GET: /Queue/Dispatch (Bảng điều phối gọi số dành cho nhân viên lễ tân / bác sĩ)
         [HttpGet]
+        [RoleAuthorize("Staff", "Doctor", "Admin")]
         public async Task<IActionResult> Dispatch()
         {
-            if (!RequireClinicPersonnel())
-            {
-                return RedirectToAction("Login", "Auth");
-            }
-
             var boardData = await _receptionService.GetLobbyQueueBoardDataAsync();
             return View(boardData);
         }
@@ -52,13 +53,9 @@ namespace OCMSMVC.Controllers
         // POST: /Queue/CallPatient (Bác sĩ/Nhân viên bấm gọi bệnh nhân vào khám)
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [RoleAuthorize("Staff", "Doctor", "Admin")]
         public async Task<IActionResult> CallPatient(int appointmentId)
         {
-            if (!RequireClinicPersonnel())
-            {
-                return Json(new { success = false, message = "Bạn không có quyền thực hiện thao tác này." });
-            }
-
             var result = await _receptionService.CallNextPatientAsync(appointmentId);
 
             if (!result.Success || result.Appointment == null)
@@ -69,6 +66,17 @@ namespace OCMSMVC.Controllers
             var apt = result.Appointment;
             var roomNumber = apt.TimeSlot?.DoctorSchedule?.Room?.RoomNumber ?? "101";
             var patientName = apt.Patient?.User?.FullName ?? "Bệnh nhân";
+            var departmentName = apt.Doctor?.Department?.Name ?? "Phòng khám";
+
+            // PRN222 - Chapter 7: Phát thông điệp qua SignalR Hub tới toàn bộ Client (TV Sảnh + Bàn gọi số)
+            await _hubContext.Clients.All.SendAsync("PatientCalled", new
+            {
+                queueNumber = apt.QueueNumber,
+                patientName = patientName,
+                roomNumber = roomNumber,
+                departmentName = departmentName
+            });
+            await _hubContext.Clients.All.SendAsync("QueueUpdated");
 
             return Json(new
             {
@@ -83,14 +91,17 @@ namespace OCMSMVC.Controllers
         // POST: /Queue/CompleteConsultation (Hoàn tất ca khám)
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [RoleAuthorize("Staff", "Doctor", "Admin")]
         public async Task<IActionResult> CompleteConsultation(int appointmentId)
         {
-            if (!RequireClinicPersonnel())
+            var result = await _receptionService.CompleteConsultationAsync(appointmentId);
+
+            if (result.Success)
             {
-                return Json(new { success = false, message = "Bạn không có quyền thực hiện thao tác này." });
+                // PRN222 - Chapter 7: Cập nhật thời gian thực khi hoàn tất ca khám
+                await _hubContext.Clients.All.SendAsync("QueueUpdated");
             }
 
-            var result = await _receptionService.CompleteConsultationAsync(appointmentId);
             return Json(new { success = result.Success, message = result.Message });
         }
     }

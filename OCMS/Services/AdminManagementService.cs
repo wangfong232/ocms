@@ -5,7 +5,7 @@ namespace Services;
 
 public class AdminManagementService : IAdminManagementService
 {
-    private static readonly string[] AllowedRoles = ["Doctor", "Staff", "Admin"];
+    private static readonly string[] AllowedRoles = ["Doctor", "Staff", "Admin", "Patient"];
     private readonly IAdminManagementRepository _repository;
     public AdminManagementService(IAdminManagementRepository repository) => _repository = repository;
 
@@ -16,7 +16,7 @@ public class AdminManagementService : IAdminManagementService
     public async Task CreateAccountAsync(string fullName, string email, string phone, string password, string role, int? departmentId, int? roomId, string? academicTitle, decimal? pricePerSlot, CancellationToken cancellationToken = default)
     {
         fullName = fullName.Trim(); email = email.Trim().ToLowerInvariant(); phone = phone.Trim(); role = role.Trim();
-        if (!AllowedRoles.Contains(role)) throw new InvalidOperationException("Chỉ được tạo tài khoản Doctor, Staff hoặc Admin.");
+        if (!AllowedRoles.Contains(role)) throw new InvalidOperationException("Vai trò không hợp lệ.");
         if (string.IsNullOrWhiteSpace(fullName) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(phone) || password.Length < 8)
             throw new InvalidOperationException("Họ tên, email, số điện thoại và mật khẩu tối thiểu 8 ký tự là bắt buộc.");
         if (role == "Doctor" && departmentId is null) throw new InvalidOperationException("Chọn khoa cho tài khoản bác sĩ.");
@@ -24,6 +24,13 @@ public class AdminManagementService : IAdminManagementService
         var user = new User { FullName = fullName, Email = email, PhoneNumber = phone, PasswordHash = BCrypt.Net.BCrypt.HashPassword(password), Role = role, IsActive = true, CreatedAt = DateTime.UtcNow };
         Doctor? doctor = role == "Doctor" ? new Doctor { DepartmentId = departmentId!.Value, DefaultRoomId = roomId, AcademicTitle = string.IsNullOrWhiteSpace(academicTitle) ? "BS" : academicTitle.Trim(), PricePerSlot = pricePerSlot ?? 150000m } : null;
         await _repository.CreateAccountAsync(user, doctor, cancellationToken);
+    }
+
+    public async Task UpdateAccountAsync(int userId, string fullName, string phone, int? departmentId, int? roomId, string? academicTitle, decimal? pricePerSlot, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(fullName) || string.IsNullOrWhiteSpace(phone))
+            throw new InvalidOperationException("Họ tên và số điện thoại không được để trống.");
+        await _repository.UpdateAccountAsync(userId, fullName, phone, departmentId, roomId, academicTitle, pricePerSlot, cancellationToken);
     }
 
     public async Task ToggleAccountAsync(int userId, int currentAdminId, CancellationToken cancellationToken = default)

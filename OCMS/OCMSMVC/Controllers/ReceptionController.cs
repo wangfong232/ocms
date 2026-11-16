@@ -2,6 +2,9 @@ using BusinessObjects.Entities;
 using DataAccessObjects;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using OCMSMVC.Filters;
+using OCMSMVC.Hubs;
 using OCMSMVC.Models;
 using Services;
 using System.Linq;
@@ -9,15 +12,18 @@ using System.Threading.Tasks;
 
 namespace OCMSMVC.Controllers
 {
+    [RoleAuthorize("Staff", "Admin")]
     public class ReceptionController : Controller
     {
         private readonly IReceptionService _receptionService;
         private readonly OcmsDbContext _context;
+        private readonly IHubContext<QueueHub> _hubContext;
 
-        public ReceptionController(IReceptionService receptionService, OcmsDbContext context)
+        public ReceptionController(IReceptionService receptionService, OcmsDbContext context, IHubContext<QueueHub> hubContext)
         {
             _receptionService = receptionService;
             _context = context;
+            _hubContext = hubContext;
         }
 
         private bool RequireStaff()
@@ -130,6 +136,12 @@ namespace OCMSMVC.Controllers
                 height
             );
 
+            if (result.Success)
+            {
+                // PRN222 - Chapter 7: Bệnh nhân vừa check-in, cập nhật ngay hàng đợi trên TV Sảnh qua SignalR
+                await _hubContext.Clients.All.SendAsync("QueueUpdated");
+            }
+
             return RedirectToAction(nameof(CheckIn), new
             {
                 appointmentId = result.Appointment?.Id ?? appointmentId,
@@ -230,6 +242,12 @@ namespace OCMSMVC.Controllers
                 ModelState.AddModelError(string.Empty, result.Message);
                 ViewBag.Doctors = await _receptionService.GetAvailableDoctorsTodayAsync();
                 return View(model);
+            }
+
+            if (result.Success)
+            {
+                // PRN222 - Chapter 7: Bệnh nhân vừa check-in, cập nhật ngay hàng đợi trên TV Sảnh qua SignalR
+                await _hubContext.Clients.All.SendAsync("QueueUpdated");
             }
 
             return RedirectToAction(nameof(CheckIn), new

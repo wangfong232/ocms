@@ -21,6 +21,18 @@ public class AdminAccountCreateViewModel
     public IReadOnlyList<SelectListItem> Rooms { get; set; } = [];
 }
 
+public class AdminAccountEditViewModel
+{
+    public int Id { get; set; }
+    [Required, StringLength(100)] public string FullName { get; set; } = "";
+    [Required, Phone, StringLength(20)] public string PhoneNumber { get; set; } = "";
+    public string Role { get; set; } = "";
+    public int? DepartmentId { get; set; }
+    public int? DefaultRoomId { get; set; }
+    [StringLength(50)] public string? AcademicTitle { get; set; }
+    [Range(0, 100000000)] public decimal? PricePerSlot { get; set; }
+}
+
 public class AdminDepartmentViewModel
 {
     public int Id { get; set; }

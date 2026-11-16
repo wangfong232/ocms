@@ -145,6 +145,37 @@ namespace DataAccessObjects
                         IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'DoctorSchedules' AND COLUMN_NAME = 'Status')
                             ALTER TABLE DoctorSchedules ADD Status NVARCHAR(20) NOT NULL CONSTRAINT DF_DoctorSchedules_Status DEFAULT 'Active';
                     END
+                    """,
+
+                    // Table: TimeSlots
+                    """
+                    IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'TimeSlots')
+                    BEGIN
+                        IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'TimeSlots' AND COLUMN_NAME = 'HoldExpiresAt')
+                            ALTER TABLE TimeSlots ADD HoldExpiresAt DATETIME2 NULL;
+
+                        -- Tự động giải phóng toàn bộ các slot cũ bị kẹt trạng thái 'Hold'
+                        UPDATE TimeSlots SET Status = 'Open', HoldExpiresAt = NULL WHERE Status = 'Hold' AND HoldExpiresAt IS NULL;
+                    END
+                    """,
+
+                    // Auto-clean overdue appointments (Lịch hẹn quá hạn)
+                    """
+                    IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'Appointments')
+                    BEGIN
+                        -- Chuyển các ca khám ngày cũ còn dở dang sang Đã hoàn thành (Completed)
+                        UPDATE Appointments
+                        SET Status = 'Completed'
+                        WHERE CAST(AppointmentDate AS DATE) < CAST(GETDATE() AS DATE)
+                          AND Status = 'InConsultation';
+
+                        -- Chuyển các lịch hẹn ngày cũ chưa khám hoặc vắng mặt sang NoShow (Bỏ khám)
+                        UPDATE Appointments
+                        SET Status = 'NoShow',
+                            CancellationReason = COALESCE(CancellationReason, N'Quá ngày hẹn - Bệnh nhân không đến khám')
+                        WHERE CAST(AppointmentDate AS DATE) < CAST(GETDATE() AS DATE)
+                          AND Status IN ('Confirmed', 'Pending', 'Arrived');
+                    END
                     """
                 };
 
@@ -225,11 +256,11 @@ namespace DataAccessObjects
                 ("Dược Sĩ Hoàng Hải Đăng", "pharmacist@ocms.clinic", "0900000006", "Staff"),
 
                 // Đội ngũ Bác sĩ chuyên khoa
-                ("BS. ThS. Nguyễn Văn An", "doctor.an@ocms.clinic", "0900000003", "Doctor"),
-                ("BS. CKI. Trần Thu Hà", "doctor.ha@ocms.clinic", "0900000007", "Doctor"),
-                ("BS. CKII. Lê Hoàng Long", "doctor.long@ocms.clinic", "0900000008", "Doctor"),
-                ("PGS.TS. Phạm Minh Tuấn", "doctor.tuan@ocms.clinic", "0900000009", "Doctor"),
-                ("BS. ThS. Vũ Mai Phương", "doctor.phuong@ocms.clinic", "0900000010", "Doctor"),
+                ("Nguyễn Văn An", "doctor.an@ocms.clinic", "0900000003", "Doctor"),
+                ("Trần Thu Hà", "doctor.ha@ocms.clinic", "0900000007", "Doctor"),
+                ("Lê Hoàng Long", "doctor.long@ocms.clinic", "0900000008", "Doctor"),
+                ("Phạm Minh Tuấn", "doctor.tuan@ocms.clinic", "0900000009", "Doctor"),
+                ("Vũ Mai Phương", "doctor.phuong@ocms.clinic", "0900000010", "Doctor"),
 
                 // Danh sách Bệnh nhân mẫu
                 ("Trần Quang Phong", "patient1@ocms.clinic", "0900000004", "Patient"),

@@ -23,6 +23,7 @@ namespace Services
         public string MaskedPhone { get; set; } = string.Empty;
         public string AppointmentTime { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
+        public bool IsEmergency { get; set; }
     }
 
     public interface IReceptionService

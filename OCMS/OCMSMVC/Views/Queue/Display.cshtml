@@ -12,6 +12,9 @@
             <small class="opacity-75">Hệ thống Outpatient Clinic Management System (OCMS)</small>
         </div>
         <div class="d-flex align-items-center gap-3">
+            <div id="signalrStatus" class="d-none d-md-block">
+                <span class="badge bg-light text-dark border"><i class="bi bi-broadcast me-1"></i>SignalR: Đang kết nối...</span>
+            </div>
             <button type="button" id="btnEnableSound" class="btn btn-warning btn-sm fw-bold" onclick="enableSound()">
                 <i class="bi bi-volume-up-fill me-1"></i>Bật Âm Thanh Chuông
             </button>
@@ -116,6 +119,9 @@
 </audio>
 
 @section Scripts {
+<!-- PRN222 - Chapter 7: Thư viện SignalR Client của Microsoft -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+
 <script>
     // 1. Cập nhật đồng hồ thời gian thực
     function updateClock() {
@@ -138,7 +144,21 @@
         }).catch(() => {});
     }
 
-    // 2. Tự động cập nhật dữ liệu bảng TV bằng AJAX Polling (chu kỳ 3 giây)
+    // Hiển thị Banner gọi bệnh nhân & phát chuông
+    function triggerCallAlert(queueNumber, patientName, roomNumber, departmentName) {
+        document.getElementById('callQueueNum').innerText = `#${queueNumber}`;
+        document.getElementById('callPatientText').innerText = `Xin mời: ${patientName}`;
+        document.getElementById('callRoomText').innerText = `Mời vào Phòng ${roomNumber} (${departmentName || 'Phòng khám'})`;
+        document.getElementById('callBanner').style.display = 'block';
+
+        const audio = document.getElementById('chimeSound');
+        if (audio) {
+            audio.currentTime = 0;
+            audio.play().catch(() => {});
+        }
+    }
+
+    // 2. Tự động cập nhật dữ liệu bảng TV bằng API
     const lastRoomPatients = {};
     let isFirstLoad = true;
 
@@ -157,14 +177,7 @@
                     // Kiểm tra nếu phòng có bệnh nhân mới vừa được gọi vào khám
                     const currentId = current ? current.appointmentId : null;
                     if (!isFirstLoad && current && lastRoomPatients[room.roomId] !== currentId) {
-                        document.getElementById('callQueueNum').innerText = `#${current.queueNumber}`;
-                        document.getElementById('callPatientText').innerText = `Xin mời: ${current.patientName}`;
-                        document.getElementById('callRoomText').innerText = `Mời vào Phòng ${room.roomNumber} (${room.departmentName})`;
-                        document.getElementById('callBanner').style.display = 'block';
-
-                        const audio = document.getElementById('chimeSound');
-                        audio.currentTime = 0;
-                        audio.play().catch(() => {});
+                        triggerCallAlert(current.queueNumber, current.patientName, room.roomNumber, room.departmentName);
                     }
                     lastRoomPatients[room.roomId] = currentId;
 
@@ -221,8 +234,41 @@
             .catch(err => console.debug("Lỗi cập nhật bảng TV:", err));
     }
 
-    // Gọi lần đầu để lưu trạng thái hiện tại, sau đó cứ 3 giây cập nhật lại
+    // 3. PRN222 - Chapter 7: KẾT NỐI SIGNALR HUB THỜI GIAN THỰC (REAL-TIME COMMUNICATION)
+    const queueConnection = new signalR.HubConnectionBuilder()
+        .withUrl("/queueHub")
+        .withAutomaticReconnect([0, 2000, 5000, 10000])
+        .build();
+
+    // Lắng nghe sự kiện Bác sĩ/Lễ tân bấm gọi bệnh nhân
+    queueConnection.on("PatientCalled", function (data) {
+        if (data) {
+            triggerCallAlert(data.queueNumber, data.patientName, data.roomNumber, data.departmentName);
+        }
+        updateLobbyData();
+    });
+
+    // Lắng nghe sự kiện Hàng đợi thay đổi (Check-in mới, Bệnh nhân vãng lai mới, Hoàn tất ca khám)
+    queueConnection.on("QueueUpdated", function () {
+        updateLobbyData();
+    });
+
+    // Khởi động kết nối SignalR
+    queueConnection.start().then(() => {
+        const statusEl = document.getElementById('signalrStatus');
+        if (statusEl) {
+            statusEl.innerHTML = '<span class="badge bg-success shadow-sm"><i class="bi bi-broadcast me-1"></i>SignalR Realtime: Đang hoạt động</span>';
+        }
+    }).catch(err => {
+        console.debug("SignalR connection fallback:", err);
+        const statusEl = document.getElementById('signalrStatus');
+        if (statusEl) {
+            statusEl.innerHTML = '<span class="badge bg-secondary"><i class="bi bi-arrow-repeat me-1"></i>Chế độ Polling dự phòng</span>';
+        }
+    });
+
+    // Gọi lần đầu để tải dữ liệu, duy trì heartbeat 10 giây dự phòng
     updateLobbyData();
-    setInterval(updateLobbyData, 3000);
+    setInterval(updateLobbyData, 10000);
 </script>
 }

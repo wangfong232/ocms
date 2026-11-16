@@ -1,0 +1,81 @@
+﻿@model OCMSMVC.Models.VerifyRegisterOtpViewModel
+@{
+    ViewData["Title"] = "Xác thực OTP Email";
+}
+
+<div class="row justify-content-center mt-5">
+    <div class="col-md-5">
+        <div class="card shadow-sm border-0 rounded-3">
+            <div class="card-header bg-primary text-white text-center py-3">
+                <h4 class="mb-0 fw-bold"><i class="bi bi-shield-check me-2"></i>Xác thực địa chỉ Email</h4>
+                <small class="text-white-50">Nhập mã OTP 6 chữ số đã được gửi qua email</small>
+            </div>
+            <div class="card-body p-4">
+                <form asp-action="VerifyRegisterOtp" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="Email" />
+
+                    <div class="mb-3 text-center">
+                        <p class="text-muted mb-1">Mã xác thực gửi tới:</p>
+                        <strong class="text-primary fs-6">@Model.Email</strong>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="OtpCode" class="form-label fw-bold text-center d-block">Mã xác thực (6 chữ số)</label>
+                        <input asp-for="OtpCode" class="form-control form-control-lg text-center fw-bold fs-3 text-primary"
+                               style="letter-spacing: 8px;" maxlength="6" placeholder="000000" autocomplete="off" autofocus />
+                        <span asp-validation-for="OtpCode" class="text-danger small text-center d-block mt-1"></span>
+                    </div>
+
+                    <div class="d-grid mb-3">
+                        <button type="submit" class="btn btn-success btn-lg fw-bold">
+                            <i class="bi bi-check-circle me-1"></i> Xác nhận & Kích hoạt tài khoản
+                        </button>
+                    </div>
+
+                    <div class="text-center">
+                        <span class="text-muted">Chưa nhận được mã OTP? </span>
+                        <button type="button" id="btnResend" class="btn btn-link p-0 fw-semibold text-decoration-none">
+                            Gửi lại mã OTP
+                        </button>
+                        <div id="resendMessage" class="small mt-2"></div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.getElementById('btnResend').addEventListener('click', function () {
+            const btn = this;
+            btn.disabled = true;
+            btn.innerText = "Đang gửi...";
+
+            fetch('/Auth/ResendRegisterOtp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                const msgEl = document.getElementById('resendMessage');
+                if (data.success) {
+                    msgEl.className = 'small text-success mt-2';
+                    msgEl.innerText = data.message;
+                } else {
+                    msgEl.className = 'small text-danger mt-2';
+                    msgEl.innerText = data.message;
+                }
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerText = "Gửi lại mã OTP";
+                }, 5000);
+            });
+        });
+    </script>
+}

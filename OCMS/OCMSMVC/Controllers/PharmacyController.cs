@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
+using OCMSMVC.Filters;
 using Services;
 
 namespace OCMSMVC.Controllers;
 
+[RoleAuthorize("Staff", "Admin")]
 public class PharmacyController : Controller
 {
     private readonly IClinicWorkflowService _workflow;

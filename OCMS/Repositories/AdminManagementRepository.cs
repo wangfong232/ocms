@@ -11,10 +11,14 @@ public class AdminManagementRepository : IAdminManagementRepository
 
     public async Task<IReadOnlyList<User>> GetUsersAsync(CancellationToken cancellationToken = default) =>
         await _db.Users.AsNoTracking().Include(u => u.Doctor).ThenInclude(d => d!.Department)
+            .Include(u => u.Doctor).ThenInclude(d => d!.DefaultRoom)
             .OrderBy(u => u.Role).ThenBy(u => u.FullName).ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<Department>> GetDepartmentsAsync(CancellationToken cancellationToken = default) =>
-        await _db.Departments.AsNoTracking().Include(d => d.Doctors).Include(d => d.Rooms).Include(d => d.MedicalServices)
+        await _db.Departments.AsNoTracking()
+            .Include(d => d.Doctors).ThenInclude(doc => doc.User)
+            .Include(d => d.Rooms)
+            .Include(d => d.MedicalServices)
             .OrderBy(d => d.Name).ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<Room>> GetRoomsAsync(CancellationToken cancellationToken = default) =>
@@ -48,7 +52,6 @@ public class AdminManagementRepository : IAdminManagementRepository
         await using var transaction = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
         var user = await _db.Users.SingleOrDefaultAsync(u => u.Id == userId, cancellationToken);
         if (user == null) return false;
-        if (user.Role == "Patient") throw new InvalidOperationException("Màn hình này quản lý tài khoản nhân viên, bác sĩ và Admin.");
         if (userId == currentAdminId && user.IsActive) throw new InvalidOperationException("Không thể khóa tài khoản Admin đang đăng nhập.");
         if (user.Role == "Admin" && user.IsActive)
         {
@@ -59,6 +62,49 @@ public class AdminManagementRepository : IAdminManagementRepository
         await _db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return true;
+    }
+
+    public async Task UpdateAccountAsync(int userId, string fullName, string phone, int? departmentId, int? roomId, string? academicTitle, decimal? pricePerSlot, CancellationToken cancellationToken = default)
+    {
+        var user = await _db.Users.Include(u => u.Doctor).SingleOrDefaultAsync(u => u.Id == userId, cancellationToken)
+            ?? throw new InvalidOperationException("Không tìm thấy tài khoản cần cập nhật.");
+
+        user.FullName = fullName.Trim();
+        user.PhoneNumber = phone.Trim();
+
+        if (user.Role == "Doctor" && user.Doctor != null)
+        {
+            if (departmentId.HasValue)
+            {
+                var deptExists = await _db.Departments.AnyAsync(d => d.Id == departmentId.Value, cancellationToken);
+                if (!deptExists) throw new InvalidOperationException("Khoa được chọn không tồn tại.");
+                user.Doctor.DepartmentId = departmentId.Value;
+            }
+
+            if (roomId.HasValue)
+            {
+                var roomValid = await _db.Rooms.AnyAsync(r => r.Id == roomId.Value && r.DepartmentId == user.Doctor.DepartmentId && r.IsOperational, cancellationToken);
+                if (!roomValid) throw new InvalidOperationException("Phòng mặc định phải đang hoạt động và thuộc khoa của bác sĩ.");
+                user.Doctor.DefaultRoomId = roomId.Value;
+            }
+            else
+            {
+                user.Doctor.DefaultRoomId = null;
+            }
+
+            if (!string.IsNullOrWhiteSpace(academicTitle))
+            {
+                user.Doctor.AcademicTitle = academicTitle.Trim();
+            }
+
+            if (pricePerSlot.HasValue)
+            {
+                if (pricePerSlot.Value < 0) throw new InvalidOperationException("Phí khám không thể âm.");
+                user.Doctor.PricePerSlot = pricePerSlot.Value;
+            }
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task SaveDepartmentAsync(Department department, CancellationToken cancellationToken = default)
