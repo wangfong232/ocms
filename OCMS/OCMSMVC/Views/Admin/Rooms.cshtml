@@ -1,8 +1,231 @@
 @model OCMSMVC.Models.AdminRoomViewModel
 @using BusinessObjects.Entities
 @using Microsoft.AspNetCore.Mvc.Rendering
-@{ ViewData["Title"] = "Quản lý phòng"; var rooms = (IReadOnlyList<Room>)ViewBag.Rooms; }
-<a asp-action="Index" class="text-decoration-none">← Quản trị</a><h1 class="h3 mt-2 mb-3">Phòng khám</h1>
-@if (TempData["ErrorMessage"] is string error) { <div class="alert alert-danger">@error</div> } @if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success">@success</div> }
-<div class="card border-0 shadow-sm mb-4"><div class="card-body"><h2 class="h5">@(Model.Id == 0 ? "Thêm phòng" : "Sửa phòng")</h2><form asp-action="SaveRoom" method="post"><input asp-for="Id" type="hidden" /><div asp-validation-summary="ModelOnly" class="text-danger"></div><div class="row g-3"><div class="col-md-3"><label asp-for="RoomNumber" class="form-label">Số phòng</label><input asp-for="RoomNumber" class="form-control" /></div><div class="col-md-4"><label asp-for="DepartmentId" class="form-label">Khoa</label><select asp-for="DepartmentId" class="form-select"><option value="">-- Chọn khoa --</option>@foreach (SelectListItem item in (IEnumerable<SelectListItem>)ViewBag.DepartmentOptions) { <option value="@item.Value">@item.Text</option> }</select></div><div class="col-md-3"><label asp-for="RoomType" class="form-label">Loại phòng</label><input asp-for="RoomType" class="form-control" /></div><div class="col-md-2 d-flex align-items-end"><div class="form-check mb-2"><input asp-for="IsOperational" class="form-check-input" /><label asp-for="IsOperational" class="form-check-label">Đang hoạt động</label></div></div></div><button class="btn btn-primary mt-3">Lưu phòng</button>@if (Model.Id != 0) { <a asp-action="Rooms" class="btn btn-outline-secondary mt-3">Hủy sửa</a> }</form></div></div>
-<div class="card border-0 shadow-sm"><div class="table-responsive"><table class="table align-middle mb-0"><thead class="table-light"><tr><th>Số phòng</th><th>Khoa</th><th>Loại</th><th>Trạng thái</th><th>Lịch</th><th></th></tr></thead><tbody>@foreach (var r in rooms) { <tr><td>@r.RoomNumber</td><td>@r.Department.Name</td><td>@r.RoomType</td><td>@(r.IsOperational ? "Hoạt động" : "Tạm ngưng")</td><td>@r.Schedules.Count</td><td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-action="Rooms" asp-route-id="@r.Id">Sửa</a> <form asp-action="DeleteRoom" method="post" class="d-inline" onsubmit="return confirm('Xóa phòng này? Chỉ xóa được khi chưa có bác sĩ hoặc lịch được gán.')"><input type="hidden" name="id" value="@r.Id" /><button class="btn btn-sm btn-outline-danger">Xóa</button></form></td></tr> }</tbody></table></div></div>
+@{
+    ViewData["Title"] = "Quản lý phòng khám";
+    var rooms = (IReadOnlyList<Room>)ViewBag.Rooms;
+    var deptOptions = (IEnumerable<SelectListItem>)ViewBag.DepartmentOptions;
+}
+
+<div class="container py-4">
+    <!-- Header Banner -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 small">
+                    <li class="breadcrumb-item"><a asp-action="Index" class="text-decoration-none">Quản trị</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Phòng khám &amp; Cơ sở vật chất</li>
+                </ol>
+            </nav>
+            <h2 class="fw-bold text-dark mb-1">
+                <i class="bi bi-door-open-fill text-info me-2"></i>Quản Lý Phòng Khám &amp; Cơ Sở
+            </h2>
+            <p class="text-muted mb-0 small">Thiết lập danh mục phòng khám lâm sàng, phòng cấp cứu, phòng xét nghiệm và trạng thái vận hành.</p>
+        </div>
+        <div class="mt-3 mt-md-0 d-flex gap-2">
+            <a asp-action="Index" class="btn btn-outline-secondary px-3 py-2 rounded-3 shadow-sm">
+                <i class="bi bi-arrow-left me-1"></i> Về tổng quan
+            </a>
+            <a href="#formRoomSection" class="btn btn-primary px-3 py-2 rounded-3 shadow-sm fw-semibold">
+                <i class="bi bi-plus-circle-fill me-1"></i> Thêm phòng mới
+            </a>
+        </div>
+    </div>
+
+    <!-- Thông báo Alert -->
+    @if (TempData["ErrorMessage"] is string error)
+    {
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm border-0 mb-4 rounded-3 d-flex align-items-center" role="alert">
+            <i class="bi bi-exclamation-octagon-fill me-2 fs-5"></i>
+            <div>@error</div>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["SuccessMessage"] is string success)
+    {
+        <div class="alert alert-success alert-dismissible fade show shadow-sm border-0 mb-4 rounded-3 d-flex align-items-center" role="alert">
+            <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+            <div>@success</div>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Bảng danh sách phòng khám -->
+    <div class="card border rounded-4 shadow-sm bg-white mb-5 overflow-hidden">
+        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+            <div class="fw-bold text-dark fs-6">
+                <i class="bi bi-hospital text-info me-2"></i>Danh Sách Phòng Khám &amp; Chức Năng
+            </div>
+            <span class="badge bg-light text-secondary border rounded-pill px-3 py-1 small">
+                Tổng cộng: <strong class="text-primary font-monospace">@rooms.Count</strong> phòng
+            </span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light text-uppercase small text-muted">
+                    <tr>
+                        <th class="ps-4 py-3" style="width: 140px;">Số phòng</th>
+                        <th class="py-3">Khoa trực thuộc</th>
+                        <th class="py-3">Phân loại phòng</th>
+                        <th class="py-3 text-center">Trạng thái vận hành</th>
+                        <th class="py-3 text-center">Ca trực phân bổ</th>
+                        <th class="py-3 text-end pe-4" style="width: 140px;">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in rooms)
+                    {
+                        <tr>
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="p-2 rounded-3 bg-primary-subtle text-primary me-2 d-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
+                                        <i class="bi bi-door-closed-fill"></i>
+                                    </div>
+                                    <span class="fw-bold text-dark fs-6 font-monospace">P.@r.RoomNumber</span>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="fw-semibold text-dark">@(r.Department?.Name ?? "—")</div>
+                                <small class="text-muted font-monospace">Mã khoa: @(r.Department?.Code ?? "—")</small>
+                            </td>
+                            <td>
+                                @{
+                                    string typeBadge = r.RoomType switch
+                                    {
+                                        "Consultation" => "bg-primary-subtle text-primary border border-primary-subtle",
+                                        "Emergency" => "bg-danger-subtle text-danger border border-danger-subtle",
+                                        "Laboratory" => "bg-info-subtle text-info-emphasis border border-info-subtle",
+                                        "Imaging" => "bg-warning-subtle text-warning-emphasis border border-warning-subtle",
+                                        "Procedure" => "bg-secondary-subtle text-secondary border border-secondary-subtle",
+                                        "Pharmacy" => "bg-success-subtle text-success border border-success-subtle",
+                                        "Cashier" => "bg-dark-subtle text-dark border border-dark-subtle",
+                                        _ => "bg-light text-dark border"
+                                    };
+                                    string typeLabel = r.RoomType switch
+                                    {
+                                        "Consultation" => "Khám lâm sàng",
+                                        "Emergency" => "Cấp cứu",
+                                        "Laboratory" => "Xét nghiệm",
+                                        "Imaging" => "CĐHA / X-Quang",
+                                        "Procedure" => "Thủ thuật",
+                                        "Pharmacy" => "Quầy phát thuốc",
+                                        "Cashier" => "Quầy thu ngân",
+                                        "Administrative" => "Phòng hành chính",
+                                        _ => r.RoomType
+                                    };
+                                }
+                                <span class="badge @typeBadge rounded-pill px-3 py-1 fw-semibold">
+                                    @typeLabel
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge rounded-pill px-3 py-1 @(r.IsOperational ? "bg-success-subtle text-success border border-success-subtle" : "bg-secondary-subtle text-secondary border border-secondary-subtle")">
+                                    <i class="bi @(r.IsOperational ? "bi-check-circle-fill" : "bi-pause-circle-fill") me-1"></i>
+                                    @(r.IsOperational ? "Đang hoạt động" : "Tạm ngưng")
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-light text-dark border rounded-pill px-3 py-1 font-monospace">
+                                    @r.Schedules.Count ca
+                                </span>
+                            </td>
+                            <td class="text-end pe-4">
+                                <div class="btn-group btn-group-sm">
+                                    <a class="btn btn-outline-primary rounded-3 px-2 py-1 shadow-sm me-1" asp-action="Rooms" asp-route-id="@r.Id" title="Chỉnh sửa thông tin phòng">
+                                        <i class="bi bi-pencil-square me-1"></i>Sửa
+                                    </a>
+                                    <form asp-action="DeleteRoom" method="post" class="d-inline"
+                                          onsubmit="return confirm('Xác nhận xóa phòng này? Chỉ xóa được khi chưa có bác sĩ hoặc ca trực được gán.')">
+                                        <input type="hidden" name="id" value="@r.Id" />
+                                        <button type="submit" class="btn btn-outline-danger rounded-3 px-2 py-1 shadow-sm" title="Xóa phòng khám">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    @if (rooms.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-5">
+                                <i class="bi bi-inbox fs-1 text-secondary opacity-50 d-block mb-2"></i>
+                                Chưa có phòng khám nào trong danh mục.
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Form Thêm / Sửa phòng -->
+    <div class="card border rounded-4 shadow-sm bg-white" id="formRoomSection">
+        <div class="card-header bg-white py-3 border-bottom d-flex align-items-center">
+            <div class="p-2 rounded-3 bg-info-subtle text-info-emphasis me-2">
+                <i class="bi bi-door-open-fill fs-5"></i>
+            </div>
+            <div>
+                <h5 class="fw-bold text-dark mb-0">@(Model.Id == 0 ? "Thêm Phòng Khám Mới" : "Chỉnh Sửa Thông Tin Phòng")</h5>
+                <small class="text-muted">Khai báo số hiệu phòng, phân khoa và loại phòng chức năng.</small>
+            </div>
+        </div>
+        <div class="card-body p-4">
+            <form asp-action="SaveRoom" method="post">
+                <input asp-for="Id" type="hidden" />
+                <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+                
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label asp-for="RoomNumber" class="form-label small fw-bold text-secondary">Số hiệu phòng <span class="text-danger">*</span></label>
+                        <input asp-for="RoomNumber" class="form-control rounded-3 py-2 font-monospace fw-bold" placeholder="VD: 101, 102, 201..." required maxlength="20" />
+                        <span asp-validation-for="RoomNumber" class="text-danger small"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="DepartmentId" class="form-label small fw-bold text-secondary">Khoa trực thuộc <span class="text-danger">*</span></label>
+                        <select asp-for="DepartmentId" class="form-select rounded-3 py-2" required>
+                            <option value="">-- Chọn khoa trực thuộc --</option>
+                            @foreach (SelectListItem item in deptOptions)
+                            {
+                                <option value="@item.Value">@item.Text</option>
+                            }
+                        </select>
+                        <span asp-validation-for="DepartmentId" class="text-danger small"></span>
+                    </div>
+                    <div class="col-md-3">
+                        <label asp-for="RoomType" class="form-label small fw-bold text-secondary">Loại phòng chức năng <span class="text-danger">*</span></label>
+                        <select asp-for="RoomType" class="form-select rounded-3 py-2" required>
+                            <option value="Consultation">Khám lâm sàng (Consultation)</option>
+                            <option value="Emergency">Cấp cứu (Emergency)</option>
+                            <option value="Laboratory">Xét nghiệm (Laboratory)</option>
+                            <option value="Imaging">Chẩn đoán hình ảnh (Imaging)</option>
+                            <option value="Procedure">Thủ thuật (Procedure)</option>
+                            <option value="Pharmacy">Quầy phát thuốc (Pharmacy)</option>
+                            <option value="Cashier">Quầy thu ngân (Cashier)</option>
+                            <option value="Administrative">Phòng hành chính (Administrative)</option>
+                        </select>
+                        <span asp-validation-for="RoomType" class="text-danger small"></span>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <div class="form-check form-switch mb-2">
+                            <input asp-for="IsOperational" class="form-check-input" type="checkbox" role="switch" id="isOpCheck" style="width: 2.5em; height: 1.3em;" />
+                            <label asp-for="IsOperational" class="form-check-label small fw-bold text-secondary ms-2" for="isOpCheck">
+                                Đang hoạt động
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-2 d-flex justify-content-end gap-2">
+                    @if (Model.Id != 0)
+                    {
+                        <a asp-action="Rooms" class="btn btn-outline-secondary px-3 py-2 rounded-3">Hủy bỏ</a>
+                    }
+                    <button type="submit" class="btn btn-primary px-4 py-2 rounded-3 shadow-sm fw-semibold">
+                        <i class="bi bi-save me-1"></i> @(Model.Id == 0 ? "Lưu Phòng Mới" : "Cập Nhật Thông Tin Phòng")
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

@@ -41,7 +41,7 @@ public class AdminController : Controller
             RevenueByDoctor = await _analyticsService.GetRevenueByDoctorAsync(start, end),
             TodayHourLabels = hourlyToday.Keys.Select(k => $"{k}h").ToList(),
             TodayHourlyRevenue = hourlyToday.Values.ToList(),
-            Users = (await _admin.GetUsersAsync()).Where(user => user.Role is "Doctor" or "Staff" or "Admin").ToList(),
+            Users = (await _admin.GetUsersAsync()).ToList(),
             Departments = new List<Department>(await _admin.GetDepartmentsAsync()),
             Rooms = new List<Room>(await _admin.GetRoomsAsync())
         };
@@ -52,7 +52,7 @@ public class AdminController : Controller
     public async Task<IActionResult> Index(CancellationToken ct)
     {
         if (!RequireAdmin()) return Denied();
-        var users = (await _admin.GetUsersAsync(ct)).Where(user => user.Role is "Doctor" or "Staff" or "Admin").ToList();
+        var users = (await _admin.GetUsersAsync(ct)).ToList();
 
         return View(new AdminDashboardViewModel
         {
@@ -62,11 +62,30 @@ public class AdminController : Controller
         });
     }
 
-    public async Task<IActionResult> Users(CancellationToken ct)
+    public async Task<IActionResult> Users(string? role, string? search, CancellationToken ct)
     {
         if (!RequireAdmin()) return Denied();
         await PopulateAccountOptions(ct);
-        ViewBag.Users = (await _admin.GetUsersAsync(ct)).Where(user => user.Role is "Doctor" or "Staff" or "Admin").ToList();
+
+        var allUsers = (await _admin.GetUsersAsync(ct)).ToList();
+
+        if (!string.IsNullOrWhiteSpace(role) && role != "All")
+        {
+            allUsers = allUsers.Where(u => u.Role.Equals(role, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLowerInvariant();
+            allUsers = allUsers.Where(u => 
+                u.Email.ToLowerInvariant().Contains(term) || 
+                u.FullName.ToLowerInvariant().Contains(term) || 
+                u.PhoneNumber.Contains(term)).ToList();
+        }
+
+        ViewBag.CurrentRole = role ?? "All";
+        ViewBag.CurrentSearch = search ?? "";
+        ViewBag.Users = allUsers;
         return View(new AdminAccountCreateViewModel());
     }
 
@@ -74,11 +93,17 @@ public class AdminController : Controller
     public async Task<IActionResult> CreateUser(AdminAccountCreateViewModel model, CancellationToken ct)
     {
         if (!RequireAdmin()) return Denied();
-        if (model.Role is not ("Doctor" or "Staff" or "Admin")) ModelState.AddModelError(nameof(model.Role), "Vai trò không hợp lệ.");
-        if (model.Role == "Doctor" && model.DepartmentId == null) ModelState.AddModelError(nameof(model.DepartmentId), "Bác sĩ phải thuộc một khoa.");
+        if (model.Role is not ("Doctor" or "Staff" or "Admin" or "Patient")) 
+            ModelState.AddModelError(nameof(model.Role), "Vai trò không hợp lệ.");
+        if (model.Role == "Doctor" && model.DepartmentId == null) 
+            ModelState.AddModelError(nameof(model.DepartmentId), "Bác sĩ phải thuộc một khoa.");
         if (!ModelState.IsValid)
         {
-            await PopulateAccountOptions(ct); ViewBag.Users = (await _admin.GetUsersAsync(ct)).Where(user => user.Role is "Doctor" or "Staff" or "Admin").ToList(); return View("Users", model);
+            await PopulateAccountOptions(ct); 
+            ViewBag.CurrentRole = "All";
+            ViewBag.CurrentSearch = "";
+            ViewBag.Users = await _admin.GetUsersAsync(ct); 
+            return View("Users", model);
         }
         try
         {
@@ -87,6 +112,22 @@ public class AdminController : Controller
         }
         catch (InvalidOperationException ex) { TempData["ErrorMessage"] = ex.Message; }
         catch (DbUpdateException) { TempData["ErrorMessage"] = "Email hoặc số điện thoại đã tồn tại, hoặc thông tin liên kết không hợp lệ."; }
+        return RedirectToAction(nameof(Users));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateUser(AdminAccountEditViewModel model, CancellationToken ct)
+    {
+        if (!RequireAdmin()) return Denied();
+        try
+        {
+            await _admin.UpdateAccountAsync(model.Id, model.FullName, model.PhoneNumber, model.DepartmentId, model.DefaultRoomId, model.AcademicTitle, model.PricePerSlot, ct);
+            TempData["SuccessMessage"] = "Đã cập nhật thông tin tài khoản.";
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = $"Lỗi cập nhật: {ex.Message}";
+        }
         return RedirectToAction(nameof(Users));
     }
 

@@ -272,6 +272,19 @@
 												<i class="bi bi-clock-history me-1"></i>@(p.CancellationReason ?? "Vắng mặt / Không đến khám theo giờ hẹn")
 											</small>
 										}
+										else if (p.Status == "Completed")
+										{
+											if (p.FollowUpDate.HasValue)
+											{
+												<span class="badge bg-primary text-white">
+													<i class="bi bi-calendar-check me-1"></i>Hẹn tái khám: @p.FollowUpDate.Value.ToString("dd/MM/yyyy")
+												</span>
+											}
+											else
+											{
+												<span class="text-success small"><i class="bi bi-check-circle me-1"></i>Đã khám xong</span>
+											}
+										}
 										else if (!string.IsNullOrEmpty(p.Reason))
 										{
 											<small class="text-muted">@p.Reason</small>

@@ -128,12 +128,16 @@ namespace OCMSMVC.Workers
 
                         // b) Lịch hẹn ngày cũ hoặc hôm nay đã quá giờ khám > 60 phút mà bệnh nhân không đến -> Vắng mặt (NoShow)
                         var currentTime = DateTime.Now.TimeOfDay;
-                        var overdueAppointments = await dbContext.Appointments
+                        var candidateAppointments = await dbContext.Appointments
                             .Include(a => a.TimeSlot)
                             .Where(a => (a.Status == "Confirmed" || a.Status == "Pending" || a.Status == "Arrived") &&
-                                        (a.AppointmentDate.Date < today ||
-                                         (a.AppointmentDate.Date == today && a.TimeSlot != null && currentTime > a.TimeSlot.EndTime.Add(TimeSpan.FromMinutes(60)))))
+                                        a.AppointmentDate.Date <= today)
                             .ToListAsync(stoppingToken);
+
+                        var overdueAppointments = candidateAppointments
+                            .Where(a => a.AppointmentDate.Date < today ||
+                                        (a.AppointmentDate.Date == today && a.TimeSlot != null && currentTime > a.TimeSlot.EndTime.Add(TimeSpan.FromMinutes(60))))
+                            .ToList();
 
                         if (overdueAppointments.Any())
                         {

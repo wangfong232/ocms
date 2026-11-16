@@ -57,7 +57,8 @@ namespace OCMSMVC.Controllers
                 CancellationReason = a.CancellationReason,
                 QrCodeToken = a.QrCodeToken ?? $"APP-{a.Id}",
                 QueueNumber = a.QueueNumber,
-                RescheduledCount = a.RescheduledCount
+                RescheduledCount = a.RescheduledCount,
+                FollowUpDate = a.MedicalRecord?.FollowUpDate
             }).ToList();
 
             var upcoming = items.Where(a => (a.Status == "Confirmed" || a.Status == "Pending") && a.AppointmentDate.Date.Add(a.StartTime) >= DateTime.Now).OrderBy(a => a.AppointmentDate).ThenBy(a => a.StartTime).ToList();
@@ -374,7 +375,10 @@ namespace OCMSMVC.Controllers
                 Status = appt.Status,
                 QueueNumber = appt.QueueNumber,
                 RescheduledCount = appt.RescheduledCount,
-                CreatedAt = appt.CreatedAt
+                CreatedAt = appt.CreatedAt,
+                FollowUpDate = appt.MedicalRecord?.FollowUpDate,
+                Diagnosis = appt.MedicalRecord?.Diagnosis,
+                DoctorNotes = appt.MedicalRecord?.DoctorNotes
             };
             return View(model);
         }

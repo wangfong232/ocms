@@ -17,18 +17,22 @@ namespace Services
 
         public async Task<decimal> GetTotalRevenueAsync(DateTime startDate, DateTime endDate)
         {
+            var startUtc = startDate.AddHours(-7);
+            var endUtc = endDate.AddHours(-7);
             return await _dbContext.Payments
                 .Include(p => p.Appointment)
                 .Where(p => p.PaymentStatus == "Success"
                          && (p.Appointment.Status == "Completed" || p.Appointment.Status == "Confirmed")
-                         && p.CreatedAt >= startDate && p.CreatedAt <= endDate)
+                         && p.CreatedAt >= startUtc && p.CreatedAt <= endUtc)
                 .SumAsync(p => p.Amount);
         }
 
         public async Task<int> GetTotalPatientsAsync(DateTime startDate, DateTime endDate)
         {
+            var startUtc = startDate.AddHours(-7);
+            var endUtc = endDate.AddHours(-7);
             return await _dbContext.Appointments
-                .Where(a => a.CreatedAt >= startDate && a.CreatedAt <= endDate)
+                .Where(a => a.CreatedAt >= startUtc && a.CreatedAt <= endUtc)
                 .Select(a => a.PatientId)
                 .Distinct()
                 .CountAsync();
@@ -36,15 +40,19 @@ namespace Services
 
         public async Task<int> GetTotalAppointmentsAsync(DateTime startDate, DateTime endDate)
         {
+            var startUtc = startDate.AddHours(-7);
+            var endUtc = endDate.AddHours(-7);
             return await _dbContext.Appointments
-                .Where(a => a.CreatedAt >= startDate && a.CreatedAt <= endDate)
+                .Where(a => a.CreatedAt >= startUtc && a.CreatedAt <= endUtc)
                 .CountAsync();
         }
 
         public async Task<double> GetCancellationRateAsync(DateTime startDate, DateTime endDate)
         {
+            var startUtc = startDate.AddHours(-7);
+            var endUtc = endDate.AddHours(-7);
             var baseQuery = _dbContext.Appointments
-                .Where(a => a.CreatedAt >= startDate && a.CreatedAt <= endDate);
+                .Where(a => a.CreatedAt >= startUtc && a.CreatedAt <= endUtc);
 
             var allAppointments = await baseQuery.CountAsync();
             if (allAppointments == 0) return 0;
@@ -58,12 +66,16 @@ namespace Services
         {
             var dict = new Dictionary<string, decimal>();
             var totalDays = (endDate - startDate).TotalDays;
+            var startUtc = startDate.AddHours(-7);
+            var endUtc = endDate.AddHours(-7);
 
-            var baseQuery = _dbContext.Payments
+            var payments = await _dbContext.Payments
                 .Include(p => p.Appointment)
                 .Where(p => p.PaymentStatus == "Success"
                          && (p.Appointment.Status == "Completed" || p.Appointment.Status == "Confirmed")
-                         && p.CreatedAt >= startDate && p.CreatedAt <= endDate);
+                         && p.CreatedAt >= startUtc && p.CreatedAt <= endUtc)
+                .Select(p => new { p.CreatedAt, p.Amount })
+                .ToListAsync();
 
             if (totalDays <= 31)
             {
@@ -72,14 +84,18 @@ namespace Services
                     dict.Add(d.ToString("dd/MM"), 0);
                 }
 
-                var dailyData = await baseQuery
-                    .GroupBy(p => p.CreatedAt.Date)
+                var dailyData = payments
+                    .GroupBy(p => p.CreatedAt.AddHours(7).Date)
                     .Select(g => new { Date = g.Key, Total = g.Sum(p => p.Amount) })
-                    .ToListAsync();
+                    .ToList();
 
                 foreach (var data in dailyData)
                 {
-                    dict[data.Date.ToString("dd/MM")] = data.Total;
+                    var label = data.Date.ToString("dd/MM");
+                    if (dict.ContainsKey(label))
+                    {
+                        dict[label] = data.Total;
+                    }
                 }
             }
             else
@@ -93,15 +109,15 @@ namespace Services
                     currentMonth = currentMonth.AddMonths(1);
                 }
 
-                var monthlyData = await baseQuery
-                    .GroupBy(p => new { p.CreatedAt.Year, p.CreatedAt.Month })
+                var monthlyData = payments
+                    .GroupBy(p => new { p.CreatedAt.AddHours(7).Year, p.CreatedAt.AddHours(7).Month })
                     .Select(g => new
                     {
                         Year = g.Key.Year,
                         Month = g.Key.Month,
                         Total = g.Sum(p => p.Amount)
                     })
-                    .ToListAsync();
+                    .ToList();
 
                 foreach (var data in monthlyData)
                 {
@@ -118,19 +134,25 @@ namespace Services
 
         public async Task<Dictionary<int, decimal>> GetTodayHourlyRevenueAsync()
         {
-            var today = DateTime.UtcNow.Date;
-            var dict = new Dictionary<int, decimal>();
+            var todayLocal = DateTime.Today;
+            var startUtc = todayLocal.AddHours(-7);
+            var endUtc = todayLocal.AddDays(1).AddHours(-7);
 
+            var dict = new Dictionary<int, decimal>();
             for (int i = 0; i < 24; i++) dict.Add(i, 0);
 
-            var hourlyData = await _dbContext.Payments
+            var hourlyPayments = await _dbContext.Payments
                 .Include(p => p.Appointment)
                 .Where(p => p.PaymentStatus == "Success"
                          && (p.Appointment.Status == "Completed" || p.Appointment.Status == "Confirmed")
-                         && p.CreatedAt.Date == today)
-                .GroupBy(p => p.CreatedAt.Hour)
-                .Select(g => new { Hour = g.Key, Total = g.Sum(p => p.Amount) })
+                         && p.CreatedAt >= startUtc && p.CreatedAt < endUtc)
+                .Select(p => new { p.CreatedAt, p.Amount })
                 .ToListAsync();
+
+            var hourlyData = hourlyPayments
+                .GroupBy(p => p.CreatedAt.AddHours(7).Hour)
+                .Select(g => new { Hour = g.Key, Total = g.Sum(p => p.Amount) })
+                .ToList();
 
             foreach (var item in hourlyData)
             {
@@ -142,6 +164,8 @@ namespace Services
         public async Task<Dictionary<string, decimal>> GetRevenueByDepartmentAsync(DateTime startDate, DateTime endDate)
         {
             var dict = new Dictionary<string, decimal>();
+            var startUtc = startDate.AddHours(-7);
+            var endUtc = endDate.AddHours(-7);
 
             var deptStats = await _dbContext.Departments
                 .Select(d => new
@@ -151,7 +175,7 @@ namespace Services
                         .SelectMany(doc => doc.Appointments)
                         .Where(a => a.Status == "Completed" || a.Status == "Confirmed")
                         .SelectMany(a => a.Payments)
-                        .Where(p => p.PaymentStatus == "Success" && p.CreatedAt >= startDate && p.CreatedAt <= endDate)
+                        .Where(p => p.PaymentStatus == "Success" && p.CreatedAt >= startUtc && p.CreatedAt <= endUtc)
                         .Sum(p => (decimal?)p.Amount) ?? 0m
                 })
                 .ToListAsync();
@@ -170,6 +194,8 @@ namespace Services
         public async Task<Dictionary<string, decimal>> GetRevenueByDoctorAsync(DateTime startDate, DateTime endDate)
         {
             var dict = new Dictionary<string, decimal>();
+            var startUtc = startDate.AddHours(-7);
+            var endUtc = endDate.AddHours(-7);
 
             var docStats = await _dbContext.Doctors
                 .Include(d => d.User)
@@ -179,7 +205,7 @@ namespace Services
                     TotalRevenue = d.Appointments
                         .Where(a => a.Status == "Completed" || a.Status == "Confirmed")
                         .SelectMany(a => a.Payments)
-                        .Where(p => p.PaymentStatus == "Success" && p.CreatedAt >= startDate && p.CreatedAt <= endDate)
+                        .Where(p => p.PaymentStatus == "Success" && p.CreatedAt >= startUtc && p.CreatedAt <= endUtc)
                         .Sum(p => (decimal?)p.Amount) ?? 0m
                 })
                 .ToListAsync();

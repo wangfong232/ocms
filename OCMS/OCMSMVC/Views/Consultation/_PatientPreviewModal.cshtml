@@ -187,18 +187,9 @@
                 
                 @if (Model.Status == "Arrived")
                 {
-                    @if (Model.CanCallNow)
-                    {
-                        <a asp-action="Examine" asp-route-id="@Model.AppointmentId" class="btn btn-primary btn-sm">
-                            Vào khám
-                        </a>
-                    }
-                    else
-                    {
-                        <button type="button" class="btn btn-secondary btn-sm" disabled>
-                            Đang có ca khám dở
-                        </button>
-                    }
+                    <a asp-action="Examine" asp-route-id="@Model.AppointmentId" class="btn btn-primary btn-sm">
+                        Vào khám
+                    </a>
                 }
                 else if (Model.Status == "InConsultation")
                 {

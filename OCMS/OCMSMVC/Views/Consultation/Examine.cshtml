@@ -294,9 +294,9 @@
                                                 }
                                             </td>
                                             <td class="text-center">
-                                                @if (order.Status == "Completed")
+                                                @if (order.Status == "Completed" || order.Status == "Paid" || !string.IsNullOrEmpty(order.ResultSummary))
                                                 {
-                                                    <span class="badge bg-success">Đã xong</span>
+                                                    <span class="badge bg-success">@(order.Status == "Paid" ? "Đã xong (Đã TT)" : "Đã xong")</span>
                                                 }
                                                 else
                                                 {

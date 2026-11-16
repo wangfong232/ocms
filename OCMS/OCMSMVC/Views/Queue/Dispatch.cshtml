@@ -1,6 +1,9 @@
 @model List<Services.RoomQueueDto>
+@using Microsoft.AspNetCore.Http
 @{
     ViewData["Title"] = "Điều Phối Gọi Số Khám";
+    var userRole = Context.Session.GetString("Role");
+    bool canComplete = userRole is "Doctor" or "Admin";
 }
 
 <div class="container py-4">
@@ -10,7 +13,7 @@
             <h3 class="fw-bold text-primary mb-1">
                 <i class="bi bi-broadcast me-2"></i>Bảng Điều Phối Hàng Đợi & Gọi Số
             </h3>
-            <p class="text-muted mb-0">Dành cho Bác sĩ & Nhân viên y tế gọi bệnh nhân vào phòng khám hoặc hoàn tất ca khám.</p>
+            <p class="text-muted mb-0">Dành cho Bác sĩ & Nhân viên y tế điều phối bệnh nhân vào phòng khám.</p>
         </div>
         <div class="d-flex gap-2">
             <a asp-action="Display" target="_blank" class="btn btn-outline-primary">
@@ -63,10 +66,17 @@
                                             <strong class="fs-5 text-dark">@room.CurrentPatient.PatientName</strong>
                                             <div class="text-muted small">SĐT: @room.CurrentPatient.MaskedPhone | Giờ hẹn: @room.CurrentPatient.AppointmentTime</div>
                                         </div>
-                                        <button type="button" class="btn btn-sm btn-outline-success fw-semibold" 
-                                                onclick="completeConsultation(@room.CurrentPatient.AppointmentId)">
-                                            <i class="bi bi-check2-circle me-1"></i>Hoàn tất khám
-                                        </button>
+                                        @if (canComplete)
+                                        {
+                                            <button type="button" class="btn btn-sm btn-outline-success fw-semibold" 
+                                                    onclick="completeConsultation(@room.CurrentPatient.AppointmentId)">
+                                                <i class="bi bi-check2-circle me-1"></i>Hoàn tất khám
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-primary px-3 py-2"><i class="bi bi-person-pulse me-1"></i>Đang khám</span>
+                                        }
                                     </div>
                                 }
                                 else
@@ -88,14 +98,18 @@
                                 <div class="list-group border rounded-3">
                                     @foreach (var p in room.WaitingQueue)
                                     {
-                                        <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                        <div class="list-group-item d-flex justify-content-between align-items-center py-3 @(p.IsEmergency ? "border-danger bg-danger-subtle" : "")">
                                             <div>
-                                                <span class="badge bg-warning text-dark fs-5 font-monospace me-2">#@p.QueueNumber</span>
-                                                <strong class="text-dark">@p.PatientName</strong>
+                                                @if (p.IsEmergency)
+                                                {
+                                                    <span class="badge bg-danger fs-6 me-1"><i class="bi bi-shield-fill-exclamation me-1"></i>CẤP CỨU</span>
+                                                }
+                                                <span class="badge @(p.IsEmergency ? "bg-danger" : "bg-warning text-dark") fs-5 font-monospace me-2">#@p.QueueNumber</span>
+                                                <strong class="@(p.IsEmergency ? "text-danger fw-bold" : "text-dark")">@p.PatientName</strong>
                                                 <small class="text-muted d-block ms-1">SĐT: @p.MaskedPhone | Giờ hẹn: @p.AppointmentTime</small>
                                             </div>
-                                            <button type="button" class="btn btn-success fw-bold px-3 py-2" onclick="callPatient(@p.AppointmentId)">
-                                                <i class="bi bi-megaphone-fill me-1"></i> Gọi Vào Khám
+                                            <button type="button" class="btn @(p.IsEmergency ? "btn-danger" : "btn-success") fw-bold px-3 py-2 shadow-sm" onclick="callPatient(@p.AppointmentId)">
+                                                <i class="bi bi-megaphone-fill me-1"></i> @(p.IsEmergency ? "Ưu Tiên Gọi Ngay" : "Gọi Vào Khám")
                                             </button>
                                         </div>
                                     }
